@@ -51,15 +51,29 @@
             injectTimer.start();
 		}
 		public function createGame(e:TimerEvent) {
-			trace("##PAGE COUNT"+ globals.Loader_custom_games.movieClip.CustomGames.ModeList.PageLabel.text);
+			trace("##PAGE COUNT: "+ globals.Loader_custom_games.movieClip.CustomGames.ModeList.PageLabel.text);
 			//For testing, lets just do Legends of Dota
-			var obj = globals.Loader_custom_games.movieClip.CustomGames.ModeList.Rows["row0"].FlyOutButton;
-			//PrintTable(obj);
-			globals.Loader_custom_games.movieClip.gameAPI.OnCustomGameModeFlyoutClicked(obj.row,obj.GameModeID);
-			
-			var injectTimer:Timer = new Timer(500, 1);
-            injectTimer.addEventListener(TimerEvent.TIMER, createGame2);
-            injectTimer.start();
+			//PrintTable(globals.Loader_custom_games.movieClip.CustomGames.ModeList);
+			var i:int;
+			var haventFoundGame:Boolean = true;
+			for (i=0; i < 12; i++) {
+				var obj = globals.Loader_custom_games.movieClip.CustomGames.ModeList.Rows["row"+i].FlyOutButton;
+				if (obj.GameModeID == false) {
+					trace("ROW "+i+" IS A LIE!!");
+					continue;
+				}
+				if (obj.GameModeID == 300989406) { //TODO: Get this from GDS_API
+					haventFoundGame = false;
+					//Lets test with WarChasers
+					globals.Loader_custom_games.movieClip.gameAPI.OnCustomGameModeFlyoutClicked(obj.row,obj.GameModeID);
+					var injectTimer:Timer = new Timer(500, 1);
+					injectTimer.addEventListener(TimerEvent.TIMER, createGame2);
+					injectTimer.start();
+				}
+			}
+			if (haventFoundGame) {
+				trace("Geez, git good");
+			}
 		}
 		public function createGame2(e:TimerEvent) {
 			globals.Loader_dashboard_overlay.movieClip.onCustomGameCreateLobbyButtonClicked(new ButtonEvent(ButtonEvent.CLICK));
