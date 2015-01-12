@@ -1,0 +1,3 @@
+[submodule "dota2Net"]
+	path = dota2Net
+	url = https://github.com/Perryvw/D2HTTPSocket

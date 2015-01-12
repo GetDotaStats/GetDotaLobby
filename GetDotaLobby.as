@@ -14,6 +14,9 @@
     import flash.events.MouseEvent;
 	import scaleform.clik.events.ButtonEvent;
 	
+	import dota2Net.D2HTTPSocket;
+	
+	import com.adobe.serialization.json.*;
 	
 	public class GetDotaLobby extends MovieClip {
 		// Game API related stuff
@@ -23,6 +26,14 @@
 		
 		public var buttonCount:int = 1;
 		
+		//These are test values, when API is available, read from them
+		//var target_gamemode:int = 322254016; //Shitwars
+		var target_gamemode:int; //Warchasers
+		var target_password:String;
+		var target_lobby:int;
+		
+		var socket:D2HTTPSocket;
+		
 		public function GetDotaLobby() {
 			// constructor code
 		}
@@ -30,6 +41,7 @@
 		
 		public function onLoaded() : void {
 			trace("injected by SinZ!\n\n\n");
+			socket = new D2HTTPSocket("getdotastats.com", "176.31.182.87");
 			this.gameAPI.OnReady();
 			Globals.instance.resizeManager.AddListener(this);
 			
@@ -37,6 +49,8 @@
 			createTestButton("Join Game", test2);
 			createTestButton("Dump Globals", test3);
 			createTestButton("hook clicks", test4);
+			createTestButton("Get Lobbies", test5);
+			createTestButton("Lobby Status", test6);
 		}
 		public function test1(event:MouseEvent) { //Create Game
 			globals.Loader_top_bar.movieClip.gameAPI.DashboardSwitchToSection(2); //Set topbar to DASHBOARD_SECTION_PLAY
@@ -46,66 +60,82 @@
 			globals.Loader_custom_games.movieClip.setCurrentCustomGameSubTab(0); //We want gamemodes, not lobbies
 			globals.Loader_custom_games.movieClip.gameAPI.OnCustomGameModeSortingComboChanged(5); //Typical valve, requires gameAPI for it to work
 			
-			var injectTimer:Timer = new Timer(100, 1);
+			var injectTimer:Timer = new Timer(50, 1);
             injectTimer.addEventListener(TimerEvent.TIMER, createGame);
             injectTimer.start();
 		}
+		
+		var pattern:RegExp = /Page: (\d) \/ (\d)/;
 		public function createGame(e:TimerEvent) {
-			trace("##PAGE COUNT: "+ globals.Loader_custom_games.movieClip.CustomGames.ModeList.PageLabel.text);
-			//For testing, lets just do Legends of Dota
-			//PrintTable(globals.Loader_custom_games.movieClip.CustomGames.ModeList);
+			var result = pattern.exec(globals.Loader_custom_games.movieClip.CustomGames.ModeList.PageLabel.text);
+			trace("#REGEX: Page "+result[1]+" / "+result[2]);
+			
 			var i:int;
-			var haventFoundGame:Boolean = true;
 			for (i=0; i < 12; i++) {
 				var obj = globals.Loader_custom_games.movieClip.CustomGames.ModeList.Rows["row"+i].FlyOutButton;
 				if (obj.GameModeID == false) {
 					trace("ROW "+i+" IS A LIE!!");
 					continue;
 				}
-				if (obj.GameModeID == 300989406) { //TODO: Get this from GDS_API
-					haventFoundGame = false;
+				if (obj.GameModeID == target_gamemode) {
 					//Lets test with WarChasers
 					globals.Loader_custom_games.movieClip.gameAPI.OnCustomGameModeFlyoutClicked(obj.row,obj.GameModeID);
-					var injectTimer:Timer = new Timer(500, 1);
+					var injectTimer:Timer = new Timer(50, 1);
 					injectTimer.addEventListener(TimerEvent.TIMER, createGame2);
 					injectTimer.start();
+					return; //We found what we want, stop looping and dont hit the error stuff at the end
 				}
 			}
-			if (haventFoundGame) {
+			if (result[1] == result[2]) {
+				//We are on the last page
+				//TODO: add some subscribe hackery here
 				trace("Geez, git good");
+			} else {
+				//We have another page!
+				trace("New page time!");
+				globals.Loader_custom_games.movieClip.gameAPI.OnCustomGameModeListNextPageClicked();
+				var injectTimer:Timer = new Timer(50, 1);
+				injectTimer.addEventListener(TimerEvent.TIMER, createGame); //Delayed resurseive function ftw?
+				injectTimer.start();
 			}
 		}
 		public function createGame2(e:TimerEvent) {
 			globals.Loader_dashboard_overlay.movieClip.onCustomGameCreateLobbyButtonClicked(new ButtonEvent(ButtonEvent.CLICK));
-			var injectTimer:Timer = new Timer(1000, 1);
+			var injectTimer:Timer = new Timer(250, 1);
             injectTimer.addEventListener(TimerEvent.TIMER, createGame3);
             injectTimer.start();
 		}
 		public function createGame3(e:TimerEvent) {
 			globals.Loader_popups.movieClip.onButton1Clicked(new ButtonEvent(ButtonEvent.CLICK));
-			var injectTimer:Timer = new Timer(1000, 1);
+			var injectTimer:Timer = new Timer(50, 1);
             injectTimer.addEventListener(TimerEvent.TIMER, createGame4);
             injectTimer.start();
 		}
 		public function createGame4(e:TimerEvent) {
 			globals.Loader_lobby_settings.movieClip.LobbySettings.gamenamefield.text = "GetDotaStats Lobby";
-			globals.Loader_lobby_settings.movieClip.LobbySettings.passwordInput.text = "GetDotaStats_Lobby_OMGOMGOMGOMGOMG";
+			globals.Loader_lobby_settings.movieClip.LobbySettings.passwordInput.text = target_password;
 			PrintTable(globals.Loader_lobby_settings.movieClip.LobbySettings);
 			globals.Loader_lobby_settings.movieClip.onConfirmSetupClicked(new ButtonEvent(ButtonEvent.CLICK));
+			socket.getDataAsync("d2mods/api/lobby_joined.php?uid="+Globals.instance.Loader_profile_mini.movieClip.ProfileMini_main.ProfileMini.Persona.steamIDNumber.text+"&lid="+target_lobby, createdGame);
+		}
+		public function createdGame(statusCode:int, data:String) {
+			trace("##CREATED_GAME "+data);
 		}
 		public function test2(event:MouseEvent) { //Join Game
-			globals.Loader_play.movieClip.gameAPI.SetPracticeLobbyFilter("sinz"); //Set password
+			globals.Loader_play.movieClip.gameAPI.SetPracticeLobbyFilter(target_password); //Set password
 			
 			globals.Loader_top_bar.movieClip.gameAPI.DashboardSwitchToSection(2); //Set topbar to DASHBOARD_SECTION_PLAY
 			globals.Loader_play.movieClip.setCurrentTab(3); //Set tab to Find Lobbies
 			globals.Loader_play.movieClip.setCurrentFindLobbyTab(3); //Set tab to Private Games
 			
-			var injectTimer:Timer = new Timer(1000, 1);
+			var injectTimer:Timer = new Timer(500, 1);
             injectTimer.addEventListener(TimerEvent.TIMER, joinGame);
             injectTimer.start();
 		}
 		public function joinGame(e:TimerEvent) {
+			//TODO: Check if subscribed and game exists before joining
 			globals.Loader_play.movieClip.gameAPI.JoinPrivateLobby(0); //Join the first game
+			socket.getDataAsync("d2mods/api/lobby_joined.php?uid="+Globals.instance.Loader_profile_mini.movieClip.ProfileMini_main.ProfileMini.Persona.steamIDNumber.text+"&lid="+target_lobby, createdGame);
 		}
 		public function test3(event:MouseEvent) { //Dump Globals
 			PrintTable(globals);
@@ -113,6 +143,51 @@
 		public function test4(event:MouseEvent) { //Hook clicks
 			globals.Level0.addEventListener(MouseEvent.CLICK, onStageClicked);
 		}
+		
+		public function test5(event:MouseEvent) { //Get Lobbies
+			socket.getDataAsync("d2mods/api/lobby_list.php", getLobbyList);
+		}
+		public function getLobbyList(statusCode:int, data:String) {
+			trace("###LOBBY LIST");
+			var json = decode(data);
+			trace(json);
+			var i:int = 0;
+			for (i=0; i < json.length; i++) {
+				var lobby:Object = json[i];
+				trace("Lobby for "+lobby.workshop_id+" detected, with "+lobby.lobby_current_players+"/"+lobby.lobby_max_players);
+			}
+		}
+		public function test6(event:MouseEvent) { //Lobby Status
+			trace("###STEAM_ID \""+Globals.instance.Loader_profile_mini.movieClip.ProfileMini_main.ProfileMini.Persona.steamIDNumber.text+"\"");
+			socket.getDataAsync("d2mods/api/lobby_user_status.php?uid="+Globals.instance.Loader_profile_mini.movieClip.ProfileMini_main.ProfileMini.Persona.steamIDNumber.text, getLobbyStatus);
+		}
+		public function getLobbyStatus(statusCode:int, data:String) {
+			trace("###LOBBY STATUS");
+			var json:Object = decode(data);
+			if (json.error) {
+				trace("There was an error: "+json.error);
+				return;
+			}
+			trace("We are in a lobby for "+json.workshop_id+" with to suit a lobby of "+json.lobby_max_players+ " players!");
+			if (json.lobby_leader == Globals.instance.Loader_profile_mini.movieClip.ProfileMini_main.ProfileMini.Persona.steamIDNumber.text) {
+				target_gamemode = json.workshop_id;
+				target_password = json.lobby_pass;
+				target_lobby = json.lobby_id;
+				test1(new MouseEvent(MouseEvent.CLICK));
+			} else {
+				if (json.lobby_hosted == 1) {
+					trace("JOINING LOBBY "+json.lobby_id);
+					target_gamemode = json.workshop_id;
+					target_password = json.lobby_pass;
+					target_lobby = json.lobby_id;
+					test2(new MouseEvent(MouseEvent.CLICK));
+				} else {
+					trace("Games not ready, why were we called?!");
+				}
+			}
+			trace(data);
+		}
+		
 		public function onStageClicked(event:MouseEvent) {
             // Grab the taget
             var target = event.target;
@@ -200,6 +275,17 @@
 		}
 		
 				//Stolen from Frota
+		        // JSON decoder
+        public static function decode( s:String, strict:Boolean = true ):* {
+            return new JSONDecoder( s, strict ).getValue();
+        }
+
+        // JSON encoder
+        public static function encode( o:Object ):String {
+            return new JSONEncoder( o ).getString();
+        }
+				
+				
 		public function strRep(str, count) {
             var output = "";
             for(var i=0; i<count; i++) {
