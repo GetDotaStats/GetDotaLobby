@@ -379,6 +379,9 @@
 				topBarFunc(tab);
 			}
 			
+			//Lets check if we launched dota for a real reason
+			test6(new MouseEvent(MouseEvent.CLICK));
+			
 			Globals.instance.resizeManager.AddListener(this);
 		}
 		
@@ -638,16 +641,7 @@
 			var map:String = this.hostClip.mapNameClip.menuList.dataProvider.requestItemAt(this.hostClip.mapNameClip.selectedIndex).label;
 			var mapName:String = this.hostClip.mapNameClip.menuList.dataProvider.requestItemAt(0).label;
 			
-			for (var i:int = 0;i < cmdd.menuList.dataProvider.length; i++){
-				var o:Object = cmdd.menuList.dataProvider.requestItemAt(i);
-				if (map == o.label){
-					trace("FOUND, setting index");
-					cmdd.setSelectedIndex(i);
-					globals.Loader_lobby_settings.movieClip.CustomMapName = map;
-					mapName = map;
-					break;
-				}
-			}
+			globals.Loader_lobby_settings.movieClip.CustomMapName = map; //This gets around override_vpk and scrub mod devs
 			
 			globals.Loader_lobby_settings.movieClip.onConfirmSetupClicked(new ButtonEvent(ButtonEvent.CLICK));
 			
@@ -1271,9 +1265,8 @@
 				if (json.lobby_hosted == 1) {
 					trace("JOINING LOBBY "+json.lobby_id);
 					target_gamemode = json.workshop_id;
-					target_password = json.lobby_pass;
 					target_lobby = json.lobby_id;
-					test2(new MouseEvent(MouseEvent.CLICK));
+					test2(new MouseEvent(MouseEvent.CLICK), json.lobby_pass);
 				} else {
 					trace("Games not ready, why were we called?!");
 				}
