@@ -40,6 +40,8 @@
 	import fl.transitions.Tween;
 	import flash.net.URLVariables;
 	import flash.net.URLLoaderDataFormat;
+	import flash.desktop.Clipboard;
+	import flash.desktop.ClipboardFormats;
 	
 	public class GetDotaLobby extends MovieClip {
 		// Game API related stuff
@@ -140,13 +142,13 @@
 			socket = new D2HTTPSocket("getdotastats.com", "176.31.182.87");
 			this.gameAPI.OnReady();
 			
-			/*createTestButton("Create Game", test1);
+			createTestButton("Create Game", test1);
 			createTestButton("Join Game", test2);
 			createTestButton("Dump Globals", test3);
 			createTestButton("hook clicks", test4);
 			createTestButton("Get Lobbies", test5);
 			createTestButton("Lobby Status", test6);
-			createTestButton("CMDD", test7);*/
+			createTestButton("CMDD", test7);
 			
 			
 			// Play tab buttons
@@ -294,7 +296,6 @@
 			this.lobbyClip.gameModeClip.setSelectedIndex(0);
 			this.lobbyClip.gameModeClip.menuList.addEventListener(ListEvent.INDEX_CHANGE, lobbyModeChange, false, 0, true);
 			
-			trace("AAAAAAA");
 			// Lobby name Input box
 			this.lobbySearchField = createTextInput(this.lobbyClip.searchClip, 14);
 			this.lobbyClip.addChild(this.lobbySearchField);
@@ -379,20 +380,24 @@
 				topBarFunc(tab);
 			}
 			
+			//Lets check if we launched dota for a real reason
+			test6(new MouseEvent(MouseEvent.CLICK));
+			
 			Globals.instance.resizeManager.AddListener(this);
 		}
 		
-		public function errorPanel(message:String, timeout:Number = 3000, color:uint = 0xFF0000, size:int = 30, align:String = TextFormatAlign.CENTER){
+		public function checkVersion(statusCode:int, data:String){
+			trace("##checkVersion");
+			trace(data);
+			var version = Number(data);
+		}
+		
+		public function errorPanel(message:String, timeout:Number = 3000, color:uint = 0xFF0000, size:int = 30, align:String = TextFormatAlign.CENTER) : TextField{
 			//  backdrop for host game panel
 			var bgClass:Class = getDefinitionByName("DB_inset") as Class;
 			
 			var mc = new bgClass();
 			//this.addChild(mc);
-			
-			
-			trace(this.screenWidth);
-			trace(this.screenHeight);
-			
 			mc.x = 300;
 			mc.y = 100;
 			mc.height = 160;
@@ -401,11 +406,6 @@
 			
 			//globals.Loader_top_bar.movieClip.addChild(mc);
 			//this.addChild(mc);
-			
-			trace(mc.scaleX);
-			trace(mc.scaleY);
-			trace(mc.width);
-			trace(mc.height);
 			
 			
 			var tf:TextFormat = globals.Loader_chat.movieClip.chat_main.chat.ChatInputBox.textField.getTextFormat();
@@ -424,11 +424,6 @@
 			field.scaleY = correctedRatio;
 			
 			//field.y = mc.height * .1 + (field.height - field.textHeight) / 2
-			
-			trace(field.scaleX);
-			trace(field.scaleY);
-			trace(field.width);
-			trace(field.height);
 			
 
 			tf.size = size;
@@ -470,6 +465,8 @@
 			var timer:Timer = new Timer(timeout, 1);
 			timer.addEventListener(TimerEvent.TIMER, tweenStart, false, 0, true);
 			timer.start();
+			
+			return field;
 		}
 		
 		public function waitLoad(event:TimerEvent){
@@ -576,6 +573,9 @@
 			//PrintTable(globals.Loader_custom_games.movieClip.CustomGames.ModeList);
 			var i:int;
 			var haventFoundGame:Boolean = true;
+			// Pull the game mode from the combo box
+			var gmi:Number = this.hostClip.gameModeClip.menuList.dataProvider[this.hostClip.gameModeClip.selectedIndex].data;
+			
 			for (i=0; i < 12; i++) {
 				var obj = globals.Loader_custom_games.movieClip.CustomGames.ModeList.Rows["row"+i].FlyOutButton;
 				
@@ -583,9 +583,6 @@
 					trace("ROW "+i+" IS A LIE!!");
 					continue;
 				}
-				
-				// Pull the game mode from the combo box
-				var gmi:Number = this.hostClip.gameModeClip.menuList.dataProvider[this.hostClip.gameModeClip.selectedIndex].data;
 				
 				if (obj.GameModeID == gmi) { //TODO: Get this from GDS_API Warchasers 310942705,  LOD 300989405, reflex 299093466
 					haventFoundGame = false;
@@ -600,7 +597,21 @@
 				trace("Geez, git good");
 				if (int(groups[1]) == nextPages){
 					trace('super done'); // no more pages
-					errorPanel("Unable to find Game Mode.  Make sure you're Subscribed to this game.");
+					var tf:TextField = errorPanel("Game Mode not found.  Copy this link to your browser to subscribe.");
+					var link:String = "http://steamcommunity.com/sharedfiles/filedetails/?id=" + gmi;
+					trace(link);
+					
+					var mc:MovieClip = new MovieClip();
+					mc.x = tf.x;
+					mc.y = tf.y + tf.height + 15;
+					mc.width = tf.width;
+					mc.height = tf.height;
+					mc.visible = true;
+					tf.parent.addChild(mc);
+					
+					var field:TextField = createLinkPanel(mc, link);
+					tf.parent.addChild(field);
+					
 					return;
 				}
 				
@@ -610,6 +621,34 @@
 				nextPageTimer.addEventListener(TimerEvent.TIMER, createGame);
 				nextPageTimer.start();
 			}
+		}
+		
+		public function createLinkPanel(mc:MovieClip, link:String):TextField{
+			var field:TextField = createTextInput(mc, 28, 0xDDDDDD, TextFormatAlign.CENTER);
+			field.text = link;
+			field.setSelection(0, field.length);
+			field.visible = true;
+			stage.focus = field;
+			
+			field.maxChars = 0;
+			field.type = TextFieldType.DYNAMIC;
+			field.background = true;
+			field.backgroundColor = 0x222222;
+			field.border = true;
+			field.selectable = true;
+			field.borderColor = 0x000000;
+			field.scaleX = correctedRatio;
+			field.scaleY = correctedRatio;
+			field.height = field.textHeight + 10 * correctedRatio;
+			field.width = field.textWidth + 30 * correctedRatio;
+			field.x = (screenWidth - field.width) / 2;
+			
+			var focusOut:Function = function(event:FocusEvent){
+				field.parent.removeChild(field);
+			};
+			
+			field.addEventListener(FocusEvent.FOCUS_OUT, focusOut, false, 0, true);
+			return field;
 		}
 		
 		public function createGame2(e:TimerEvent) {
@@ -636,18 +675,25 @@
 			globals.Loader_lobby_settings.movieClip.LobbySettings.passwordInput.text = this.target_password;
 			var cmdd:MovieClip = globals.Loader_lobby_settings.movieClip.LobbySettings.CustomMapsDropDown;
 			var map:String = this.hostClip.mapNameClip.menuList.dataProvider.requestItemAt(this.hostClip.mapNameClip.selectedIndex).label;
-			var mapName:String = this.hostClip.mapNameClip.menuList.dataProvider.requestItemAt(0).label;
+			var mapName:String = map;
 			
-			for (var i:int = 0;i < cmdd.menuList.dataProvider.length; i++){
-				var o:Object = cmdd.menuList.dataProvider.requestItemAt(i);
-				if (map == o.label){
-					trace("FOUND, setting index");
-					cmdd.setSelectedIndex(i);
-					globals.Loader_lobby_settings.movieClip.CustomMapName = map;
-					mapName = map;
-					break;
+			if (cmdd.menuList.dataProvider.length == 0){
+				// override_vpk and missing addoninfo is on, let's fill the provider
+				cmdd.setDataProvider(this.hostClip.mapNameClip.menuList.dataProvider);
+				cmdd.setSelectedIndex(this.hostClip.mapNameClip.selectedIndex);
+			}
+			else{
+				// Let the actual in game list be authoritative if present, and set the index if found
+				for (var i:int = 0;i < cmdd.menuList.dataProvider.length; i++){
+					var o:Object = cmdd.menuList.dataProvider.requestItemAt(i);
+					if (map == o.label){
+						trace("FOUND, setting index");
+						cmdd.setSelectedIndex(i);
+						break;
+					}
 				}
 			}
+			globals.Loader_lobby_settings.movieClip.CustomMapName = map; //This gets around override_vpk and scrub mod devs
 			
 			globals.Loader_lobby_settings.movieClip.onConfirmSetupClicked(new ButtonEvent(ButtonEvent.CLICK));
 			
@@ -766,7 +812,7 @@
 				var nextState:Object = new Object();
 				var key:Object;
 				
-				PrintTable(state);
+				//PrintTable(state);
 				
 				for (key in lobbyState.players){
 					if (state[key] != null){
@@ -779,7 +825,7 @@
 					}
 				}
 				
-				PrintTable(state);
+				//PrintTable(state);
 				
 				for (key in state){
 					// new account
@@ -787,8 +833,8 @@
 					retryAsyncCall("d2mods/api/lobby_joined.php?uid=" + key + "&lid=" + lobbyState.lid + "&un=" + state[key] + "&t=" + lobbyState.token, "Player join registration failure");
 				}
 				
-				PrintTable(nextState);
-				trace("-----");
+				//PrintTable(nextState);
+				//trace("-----");
 				
 				lobbyState.players = nextState;
 				
@@ -796,9 +842,9 @@
 				var lname:String = globals.Loader_lobby_settings.movieClip.LobbySettings.gamenamefield.text;
 				var lpass:String = globals.Loader_lobby_settings.movieClip.LobbySettings.passwordInput.text;
 				var lmap:String = globals.Loader_lobby_settings.movieClip.LobbySettings.CustomMapsDropDown.label;
-				trace("lname: " + lname);
-				trace("lpass: " + lpass);
-				trace("lmap: " + lmap);
+				//trace("lname: " + lname);
+				//trace("lpass: " + lpass);
+				//trace("lmap: " + lmap);
 				
 				var dirty:Boolean = false;
 				if (lobbyState.lobbyName != lname){
@@ -896,7 +942,7 @@
 					if (retries == 0)
 						errorPanel(failureString + ": " + statusCode + "-- FAILED", 1000);
 						if (failureCallback != null)
-							failureCallback();
+							failureCallback(statusCode, data);
 						return;
 					
 					var retryTimer:Timer = new Timer(1000, 1);
@@ -911,12 +957,12 @@
 				if (json.error != null){
 					errorPanel(failureString + ": " + json.error);
 					if (failureCallback != null)
-						failureCallback();
+						failureCallback(statusCode, data);
 					return;
 				}
 				
 				if (successCallback != null)
-					successCallback();
+					successCallback(statusCode, data);
 			};
 			socket.getDataAsync(url, retryAsyncCallback);
 		}
@@ -963,15 +1009,15 @@
 			refreshTimer.addEventListener(TimerEvent.TIMER, reenableRefresh, false, 0, true);
 			refreshTimer.start();
 			
-			/*var s:String = '[{"lobby_id":80,"mod_id":13,"workshop_id":333644472,"lobby_current_players":1,"lobby_max_players":4,"lobby_leader":68903670,"lobby_active":0,"lobby_hosted":0,"lobby_pass":"SJJ73N2FL8","lobby_map":"bomberman2", "lobby_name":"Lobby 1", "leader_name":"BMD","lobby_region":2},' 
-						 + '{"lobby_id":55,"mod_id":13,"workshop_id":333644472,"lobby_current_players":3,"lobby_max_players":6,"lobby_leader":68903670,"lobby_active":0,"lobby_hosted":0,"lobby_pass":"SJJ73N2FL9","lobby_map":"bomberman2", "lobby_name":"Lobby 2", "leader_name":"BMD","lobby_region":3},'
-						 + '{"lobby_id":117,"mod_id":11,"workshop_id":310066170,"lobby_max_players":8,"lobby_leader":68903670,"lobby_hosted":0,"lobby_pass":"5YBKZGPX9H","lobby_map":"template_map","lobby_current_players":3,"lobby_name":"Lobby 4","leader_name":"BMD","lobby_region":4},'
-						 + '{"lobby_id":118,"mod_id":11,"workshop_id":310066170,"lobby_max_players":8,"lobby_leader":68903670,"lobby_hosted":0,"lobby_pass":"5YBKZGPX9G","lobby_map":"template_map","lobby_current_players":3,"lobby_name":"Lobby 6","leader_name":"BMD","lobby_region":4},'
-						 + '{"lobby_id":131,"mod_id":7,"workshop_id":299093466,"lobby_name":"Custom Lobby #131","lobby_max_players":6,"lobby_leader":68903670,"lobby_hosted":0,"lobby_pass":"UMBLRMRQ3C","lobby_map":"arena","lobby_current_players":1,"leader_name":"BMD","lobby_region":6},'
-						 + '{"lobby_id":133,"mod_id":7,"workshop_id":299093466,"lobby_name":"Custom Lobby #132","lobby_max_players":8,"lobby_leader":68903670,"lobby_hosted":0,"lobby_pass":"UMBLRMRQ3E","lobby_map":"reflex","lobby_current_players":4,"leader_name":"BMD","lobby_region":0},'
-						 + '{"lobby_id":137,"mod_id":7,"workshop_id":299093466,"lobby_name":"Custom Lobby #137","lobby_max_players":7,"lobby_leader":68903670,"lobby_hosted":0,"lobby_pass":"UMBLRMRQ3D","lobby_map":"glacier","lobby_current_players":3,"leader_name":"BMD","lobby_region":10},'
-						 + '{"lobby_id":130,"mod_id":27,"workshop_id":305278898,"lobby_name":"Custom Lobby #130","lobby_max_players":3,"lobby_leader":28755155,"lobby_hosted":0,"lobby_pass":"HKH7J2Z6DR","lobby_map":"epic_boss_fight","lobby_current_players":0,"leader_name":"Jimmy@#%@#%","lobby_region":7},'
-						 + '{"lobby_id":116,"mod_id":11,"workshop_id":310066170,"lobby_max_players":10,"lobby_leader":68903670,"lobby_hosted":0,"lobby_pass":"5YBKZGPX9D","lobby_map":"template_map","lobby_current_players":2,"lobby_name":"Lobby 5","leader_name":"BMD","lobby_region":1}]';
+			/*var s:String = '[{"lobby_id":80,"mod_id":13,"workshop_id":333644472,"lobby_current_players":1,"lobby_max_players":4,"lobby_leader":68903670,"lobby_active":0,"lobby_hosted":1,"lobby_pass":"SJJ73N2FL8","lobby_map":"bomberman2", "lobby_name":"Lobby 1", "lobby_leader_name":"BMD","lobby_region":2},' 
+						 + '{"lobby_id":55,"mod_id":13,"workshop_id":333644472,"lobby_current_players":3,"lobby_max_players":6,"lobby_leader":68903670,"lobby_active":0,"lobby_hosted":1,"lobby_pass":"SJJ73N2FL9","lobby_map":"bomberman2", "lobby_name":"Lobby 2", "lobby_leader_name":"BMD","lobby_region":3},'
+						 + '{"lobby_id":117,"mod_id":11,"workshop_id":310066170,"lobby_max_players":8,"lobby_leader":68903670,"lobby_hosted":1,"lobby_pass":"5YBKZGPX9H","lobby_map":"template_map","lobby_current_players":3,"lobby_name":"Lobby 4","lobby_leader_name":"BMD","lobby_region":4},'
+						 + '{"lobby_id":118,"mod_id":11,"workshop_id":310066170,"lobby_max_players":8,"lobby_leader":68903670,"lobby_hosted":1,"lobby_pass":"5YBKZGPX9G","lobby_map":"template_map","lobby_current_players":3,"lobby_name":"Lobby 6","lobby_leader_name":"BMD","lobby_region":4},'
+						 + '{"lobby_id":131,"mod_id":7,"workshop_id":299093466,"lobby_name":"Custom Lobby #131","lobby_max_players":6,"lobby_leader":68903670,"lobby_hosted":1,"lobby_pass":"UMBLRMRQ3C","lobby_map":"arena","lobby_current_players":1,"lobby_leader_name":"BMD","lobby_region":6},'
+						 + '{"lobby_id":133,"mod_id":7,"workshop_id":299093466,"lobby_name":"Custom Lobby #132","lobby_max_players":8,"lobby_leader":68903670,"lobby_hosted":1,"lobby_pass":"UMBLRMRQ3E","lobby_map":"reflex","lobby_current_players":4,"lobby_leader_name":"BMD","lobby_region":0},'
+						 + '{"lobby_id":137,"mod_id":7,"workshop_id":299093466,"lobby_name":"Custom Lobby #137","lobby_max_players":7,"lobby_leader":68903670,"lobby_hosted":1,"lobby_pass":"UMBLRMRQ3D","lobby_map":"glacier","lobby_current_players":3,"lobby_leader_name":"BMD","lobby_region":10},'
+						 + '{"lobby_id":130,"mod_id":27,"workshop_id":305278898,"lobby_name":"Custom Lobby #130","lobby_max_players":3,"lobby_leader":28755155,"lobby_hosted":1,"lobby_pass":"HKH7J2Z6DR","lobby_map":"epic_boss_fight","lobby_current_players":0,"lobby_leader_name":"Jimmy@#%@#%","lobby_region":7},'
+						 + '{"lobby_id":116,"mod_id":11,"workshop_id":310066170,"lobby_max_players":10,"lobby_leader":68903670,"lobby_hosted":1,"lobby_pass":"5YBKZGPX9D","lobby_map":"template_map","lobby_current_players":2,"lobby_name":"Lobby 5","lobby_leader_name":"BMD","lobby_region":1}]';
 			getLobbyListCallback(200, s);*/
 		}
 		
@@ -996,6 +1042,7 @@
 				}
 			}
 			else{
+				trace("NO ACTIVE LOBBIES");
 				errorPanel(json.error);
 			}
 			
@@ -1047,11 +1094,16 @@
 					
 				lobby.clip = clip;
 				
-				//Globals.instance.Loader_profile_mini.movieClip.ProfileMini_main.ProfileMini.Persona.steamIDNumber.text
+				
+				var searchTest:Boolean = (searchFilter == "" || lobby.lobby_name.indexOf(searchFilter) >= 0
+										  || lobby.lobby_leader_name.indexOf(searchFilter) >= 0
+										  || clip.mode.text.indexOf(searchFilter) >= 0
+										  || clip.map.text.indexOf(searchFilter) >= 0
+										  || clip.region.text.indexOf(searchFilter) >= 0);
 				
 				// Filter test
 				clip.visible = (lobby.lobby_hosted == 1)
-							&& (searchFilter == "" || lobby.lobby_name.indexOf(searchFilter) >= 0)
+							&& searchTest
 							&& (modeFilter == -1 || modeFilter == lobby.workshop_id)
 							&& (mapFilter == "*" || mapFilter == lobby.lobby_map)
 							&& (regionFilter == -1 || regionFilter == lobby.lobby_region);
@@ -1271,9 +1323,8 @@
 				if (json.lobby_hosted == 1) {
 					trace("JOINING LOBBY "+json.lobby_id);
 					target_gamemode = json.workshop_id;
-					target_password = json.lobby_pass;
 					target_lobby = json.lobby_id;
-					test2(new MouseEvent(MouseEvent.CLICK));
+					test2(new MouseEvent(MouseEvent.CLICK), json.lobby_pass);
 				} else {
 					trace("Games not ready, why were we called?!");
 				}
