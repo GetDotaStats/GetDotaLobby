@@ -142,13 +142,13 @@
 			socket = new D2HTTPSocket("getdotastats.com", "176.31.182.87");
 			this.gameAPI.OnReady();
 			
-			createTestButton("Create Game", test1);
+			/*createTestButton("Create Game", test1);
 			createTestButton("Join Game", test2);
 			createTestButton("Dump Globals", test3);
 			createTestButton("hook clicks", test4);
 			createTestButton("Get Lobbies", test5);
 			createTestButton("Lobby Status", test6);
-			createTestButton("CMDD", test7);
+			createTestButton("CMDD", test7);*/
 			
 			
 			// Play tab buttons
