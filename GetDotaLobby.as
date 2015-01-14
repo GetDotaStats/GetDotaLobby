@@ -49,6 +49,10 @@
         public var globals:Object;
         public var elementName:String;
 		
+		private var version:String = "0.1";
+		private var DEBUG:Boolean = false;
+		private var versionChecked:Boolean = false;
+		
 		public var buttonCount:int = 1;
 		public var correctedRatio:Number = 1;
 		public var screenWidth:Number = 1600;
@@ -142,14 +146,20 @@
 			socket = new D2HTTPSocket("getdotastats.com", "176.31.182.87");
 			this.gameAPI.OnReady();
 			
-			/*createTestButton("Create Game", test1);
-			createTestButton("Join Game", test2);
-			createTestButton("Dump Globals", test3);
-			createTestButton("hook clicks", test4);
-			createTestButton("Get Lobbies", test5);
-			createTestButton("Lobby Status", test6);
-			createTestButton("CMDD", test7);*/
+			if (DEBUG){
+				createTestButton("Create Game", test1);
+				createTestButton("Join Game", test2);
+				createTestButton("Dump Globals", test3);
+				createTestButton("hook clicks", test4);
+				createTestButton("Get Lobbies", test5);
+				createTestButton("Lobby Status", test6);
+				createTestButton("CMDD", test7);
+			}
 			
+			
+			//  backdrop for host game panel
+			var bgClass:Class = getDefinitionByName("DB_inset") as Class;
+			var mc = new bgClass();
 			
 			// Play tab buttons
 			var but:MovieClip = createTestButton("HOST CUSTOM LOBBY", hostGame);
@@ -159,18 +169,15 @@
 			
 			var customButton:MovieClip = globals.Loader_play.movieClip.PlayWindow.PlayMain.Nav.tab12;
 			
-			globals.Loader_play.movieClip.PlayWindow.PlayMain.Nav.addChild(but);
-			globals.Loader_play.movieClip.PlayWindow.PlayMain.Nav.addChild(but2);
 			but.x = customButton.x;
 			but.y = customButton.y + 50;
 			but2.x = customButton.x;
 			but2.y = but.y + but.height + 2;
+			globals.Loader_play.movieClip.PlayWindow.PlayMain.Nav.addChild(but);
+			globals.Loader_play.movieClip.PlayWindow.PlayMain.Nav.addChild(but2);
 			
 			
-			//  backdrop for host game panel
-			var bgClass:Class = getDefinitionByName("DB_inset") as Class;
-			
-			var mc = new bgClass();
+			mc = new bgClass();
 			hostGameClip = new MovieClip();
 			hostGameClip.addChild(mc);
 			//this.addChild(hostGameClip);
@@ -193,6 +200,10 @@
 			this.removeChild(this.hostClip);
 			hostGameClip.addChild(this.hostClip);
 			this.hostClip.closeButton.addEventListener(MouseEvent.CLICK, closeClicked, false, 0, true);
+			
+			// Version string
+			this.hostClip.versionText.text = "Ver " + version;
+			this.lobbyClip.versionText.text = "Ver " + version;
 			
 			// Create Lobby button
 			this.hostClip.hostGameButton = replaceWithValveComponent(this.hostClip.hostGameButton, "button_big");
@@ -386,10 +397,34 @@
 			Globals.instance.resizeManager.AddListener(this);
 		}
 		
+		public function checkVersionCall(e:TimerEvent){
+			socket.getDataAsync("d2mods/api/lobby_version.txt", checkVersion);
+		}
+		
 		public function checkVersion(statusCode:int, data:String){
 			trace("##checkVersion");
 			trace(data);
-			var version = Number(data);
+			var ver = Number(data);
+			var currentVersion = Number(version);
+			
+			if (ver > currentVersion){
+				trace("not up to date");
+				
+				var tf:TextField = errorPanel("Lobby Explorer plugin is out of date.  Copy this link to your browser to update.");
+				var link:String = "http://getdotastats.com/#d2mods__lobby_guide";
+				trace(link);
+				
+				var mc:MovieClip = new MovieClip();
+				mc.x = tf.x;
+				mc.y = tf.y + tf.height + 15;
+				mc.width = tf.width;
+				mc.height = tf.height;
+				mc.visible = true;
+				tf.parent.addChild(mc);
+				
+				var field:TextField = createLinkPanel(mc, link);
+				tf.parent.addChild(field);
+			}
 		}
 		
 		public function errorPanel(message:String, timeout:Number = 3000, color:uint = 0xFF0000, size:int = 30, align:String = TextFormatAlign.CENTER) : TextField{
@@ -526,6 +561,11 @@
 			trace("CLICKED host game");
 			hostGameClip.visible = true;
 			lobbyBrowserClip.visible = false;
+			
+			if (!versionChecked){
+				versionChecked = true;
+				checkVersionCall(null);
+			}
 		}
 		
 		public function lobbyBrowser(event:MouseEvent){
@@ -535,6 +575,18 @@
 			
 			if (this.lobbyClip.refreshClip.enabled){
 				getLobbyList();
+				if (!versionChecked){
+					versionChecked = true;
+					var waitTimer2:Timer = new Timer(5000, 1);
+					waitTimer2.addEventListener(TimerEvent.TIMER, checkVersionCall, false, 0, true);
+					waitTimer2.start();
+				}
+			}
+			else{
+				if (!versionChecked){
+					versionChecked = true;
+					checkVersionCall(null);
+				}
 			}
 		}
 		
@@ -664,7 +716,7 @@
             injectTimer.start();
 		}
 		public function createGame4(e:TimerEvent) {
-			globals.Loader_popups.movieClip.beginClose();
+			globals.Loader_popups.movieClip.onButton1Clicked(new ButtonEvent(ButtonEvent.CLICK));
 			var lobbyName:String = this.lobbyNameField.text;
 			if (lobbyName == "")
 				lobbyName = "Custom Lobby";
@@ -982,13 +1034,44 @@
 		public function joinGame(e:TimerEvent) {
 			if (!globals.Loader_play.movieClip.PlayWindow.PlayMain.FindLobby.PrivateContent.game0.visible){
 				trace("NO GAME FOUND"); // Probably should pop that up
-				errorPanel("No Lobby Found, Please Try Again");
+				errorPanel("No Lobby Found.  The game may have begun or been closed.");
 				return;
 			}
 			
 			globals.Loader_play.movieClip.gameAPI.JoinPrivateLobby(0); //Join the first game
-			//socket.getDataAsync("d2mods/api/lobby_joined.php?uid="+Globals.instance.Loader_profile_mini.movieClip.ProfileMini_main.ProfileMini.Persona.steamIDNumber.text+"&lid="+target_lobby, createdGame);
+			
+			var injectTimer:Timer = new Timer(500, 1);
+            injectTimer.addEventListener(TimerEvent.TIMER, checkForMissingMode);
+            injectTimer.start();
 		}
+		
+		public function checkForMissingMode(e:TimerEvent){
+			var requiredMode:String = globals.GameInterface.Translate("#lobby_game_mode_required_desc");
+			requiredMode = requiredMode.substr(0, requiredMode.indexOf("\""));
+			var rxGMI = /(\d+)/gi;
+			
+			var msg:String = globals.Loader_popups.movieClip.AnimatingPanel.GlimmerAnim.Messages.MSG_Generic.Msg.text;
+			if (globals.Loader_popups.movieClip.AnimatingPanel.GlimmerAnim.Messages.MSG_Generic.Msg.visible && msg.indexOf(requiredMode) >= 0){
+				//globals.Loader_popups.movieClip.onOKClicked(new ButtonEvent(ButtonEvent.CLICK));
+				var gmi:String = rxGMI.exec(msg)[1];
+				
+				var tf:TextField = errorPanel("Game Mode not found.  Copy this link to your browser to subscribe.");
+				var link:String = "http://steamcommunity.com/sharedfiles/filedetails/?id=" + gmi;
+				trace(link);
+				
+				var mc:MovieClip = new MovieClip();
+				mc.x = tf.x;
+				mc.y = this.screenHeight * .45;
+				mc.width = tf.width;
+				mc.height = tf.height;
+				mc.visible = true;
+				tf.parent.addChild(mc);
+				
+				var field:TextField = createLinkPanel(mc, link);
+				tf.parent.addChild(field);
+			}
+		}
+		
 		public function test3(event:MouseEvent) { //Dump Globals
 			PrintTable(globals);
 		}
