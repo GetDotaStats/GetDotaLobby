@@ -1040,7 +1040,7 @@
 			
 			globals.Loader_play.movieClip.gameAPI.JoinPrivateLobby(0); //Join the first game
 			
-			var injectTimer:Timer = new Timer(500, 1);
+			var injectTimer:Timer = new Timer(1000, 1);
             injectTimer.addEventListener(TimerEvent.TIMER, checkForMissingMode);
             injectTimer.start();
 		}
@@ -1051,9 +1051,10 @@
 			var rxGMI = /(\d+)/gi;
 			
 			var msg:String = globals.Loader_popups.movieClip.AnimatingPanel.GlimmerAnim.Messages.MSG_Generic.Msg.text;
+			
 			if (globals.Loader_popups.movieClip.visible && 
 				globals.Loader_popups.movieClip.AnimatingPanel.visible &&
-				globals.Loader_popups.movieClip.GlimmerAnim.visible &&
+				globals.Loader_popups.movieClip.AnimatingPanel.GlimmerAnim.visible &&
 				globals.Loader_popups.movieClip.AnimatingPanel.GlimmerAnim.Messages.MSG_Generic.Msg.visible && msg.indexOf(requiredMode) >= 0){
 				//globals.Loader_popups.movieClip.onOKClicked(new ButtonEvent(ButtonEvent.CLICK));
 				var gmi:String = rxGMI.exec(msg)[1];
