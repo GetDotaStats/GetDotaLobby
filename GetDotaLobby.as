@@ -49,7 +49,7 @@
         public var globals:Object;
         public var elementName:String;
 		
-		private var version:String = "0.11";
+		private var version:String = "0.12";
 		private var DEBUG:Boolean = false;
 		private var versionChecked:Boolean = false;
 		
@@ -411,7 +411,7 @@
 				trace("not up to date");
 				
 				var tf:TextField = errorPanel("Lobby Explorer plugin is out of date.  Copy this link to your browser to update.");
-				var link:String = "http://getdotastats.com/#d2mods__lobby_guide";
+				var link:String = "https://github.com/GetDotaStats/GetDotaLobby/raw/lobbybrowser/play_weekend_tourney.swf";
 				trace(link);
 				
 				var mc:MovieClip = new MovieClip();
@@ -695,10 +695,27 @@
 			field.width = field.textWidth + 30 * correctedRatio;
 			field.x = (screenWidth - field.width) / 2;
 			
+			
+			var tween:Tween = new Tween(field, "alpha", null, 1, 0, 2, true);
+			tween.addEventListener(TweenEvent.MOTION_FINISH, tweenEnd, false, 0, true);
+			tween.stop();
+			
+			var tweenEnd:Function = function(e:TweenEvent){
+				trace("tween finish");
+				field.parent.removeChild(mc);
+		 	};
+			
 			var focusOut:Function = function(event:FocusEvent){
-				field.parent.removeChild(field);
+				//removeTimer.start();
+				tween.resume();
 			};
 			
+			var focusIn:Function = function(event:FocusEvent){
+				tween.stop();
+			}
+
+			
+			field.addEventListener(FocusEvent.FOCUS_IN, focusIn, false, 0, true);
 			field.addEventListener(FocusEvent.FOCUS_OUT, focusOut, false, 0, true);
 			return field;
 		}
@@ -846,23 +863,48 @@
 				var practiceLobby = globals.Loader_practicelobby.movieClip.PracticeLobby;
 				var account:uint = 0;
 				
+				//trace('----');
+				//trace("Pools");
 				for (i=0; i<12; i++){
+					//trace(i + " -- " + practiceLobby["PlayerPool" + i].visible + " -- " + practiceLobby["PlayerPool" + i].accountID + " -- " + practiceLobby["PlayerPool" + i].KickButton.visible);
 					if (practiceLobby["PlayerPool" + i].visible && practiceLobby["PlayerPool" + i].accountID)
 						state[practiceLobby["PlayerPool" + i].accountID] = practiceLobby["PlayerPool" + i].Player.PlayerNameIngame.text; //true;
 				}				
+				//trace('----');
+				//trace('Broadcasters');
 				for (i=0; i<6; i++){
+					//trace(i)
 					for (var j:int = 0; j<4; j++){
+						/*trace("\t" + j + " -- " + practiceLobby["Broadcaster" + i]["Player" + j].visible 
+							  + " -- " + practiceLobby["Broadcaster" + i]["Player" + j].accountID
+							  + " -- " + practiceLobby["Broadcaster" + i]["Player" + j].Player.visible
+							  + " -- " + practiceLobby["Broadcaster" + i]["Player" + j].Player.PlayerNameIngame.visible
+							  + " -- " + practiceLobby["Broadcaster" + i]["Player" + j].Player.PlayerNameIngame.text
+							  + " -- " + practiceLobby["Broadcaster" + i]["Player" + j].Player.PlayerNameOver.visible
+							  + " -- " + practiceLobby["Broadcaster" + i]["Player" + j].Player.PlayerNameOver.text);*/
 						if (practiceLobby["Broadcaster" + i]["Player" + j].visible && practiceLobby["Broadcaster" + i]["Player" + j].accountID)
 							state[practiceLobby["Broadcaster" + i]["Player" + j].accountID] = practiceLobby["Broadcaster" + i]["Player" + j].Player.PlayerNameIngame.text //true;
 					}
 				}
+				//trace('----');
+				//trace('Players');
 				for (i=0; i<10; i++){
-					if (practiceLobby["Player" + i].visible && practiceLobby["Player" + i].accountID)
+					/*trace(i + " -- " + practiceLobby["Player" + i].visible + practiceLobby["Player" + i].accountID
+						  + " -- " + practiceLobby["Player" + i].PlayerName.visible
+						  + " -- " + practiceLobby["Player" + i].PlayerName.PlayerNameIngame.visible
+						  + " -- " + practiceLobby["Player" + i].PlayerName.PlayerNameIngame.text
+						  + " -- " + practiceLobby["Player" + i].PlayerName.PlayerNameOver.visible
+						  + " -- " + practiceLobby["Player" + i].PlayerName.PlayerNameOver.text
+						  + " -- " + practiceLobby["Player" + i].JoinTeamButton.visible
+						  + " -- " + practiceLobby["Player" + i].KickButton.visible);*/
+					if (practiceLobby["Player" + i].PlayerName.visible && practiceLobby["Player" + i].accountID)
 						state[practiceLobby["Player" + i].accountID] = practiceLobby["Player" + i].PlayerName.PlayerNameIngame.text; // true
 				}
 				
 				var nextState:Object = new Object();
 				var key:Object;
+				//trace('=======');
+				//trace('=======');
 				
 				//PrintTable(state);
 				
@@ -927,10 +969,11 @@
 			
 			var oldLeaveButton = globals.Loader_practicelobby.movieClip.gameAPI.LeaveButton;
 			var oldStartButton = globals.Loader_practicelobby.movieClip.gameAPI.StartGameButton;
-			var oldButton1 = globals.Loader_popups.movieClip.gameAPI.Button1Clicked;
+			//var oldButton1 = globals.Loader_popups.movieClip.gameAPI.Button1Clicked;
+			var oldButton1 = globals.Loader_popups.movieClip.onButton1Clicked;
 			var quitDesc:String = globals.GameInterface.Translate("#DOTA_ConfirmQuitDesc");
 			
-			globals.Loader_popups.movieClip.gameAPI.Button1Clicked = function (){
+			globals.Loader_popups.movieClip.onButton1Clicked = function (){
 				trace("Button 1 pressed");
 				trace(quitDesc);
 				trace(globals.Loader_popups.movieClip.AnimatingPanel.GlimmerAnim.Messages.MSG_Generic.Msg.text);
@@ -941,8 +984,8 @@
 				}
 				
 				lobbyStateTimer.stop();
-				trace("QUITING TIME")
-				var doneRegistration:Function = function(){		
+				trace("QUITTING TIME")
+				var doneRegistration:Function = function(statusCode:int, data:String){		
 					oldButton1();
 					globals.Loader_practicelobby.movieClip.gameAPI.LeaveButton = oldLeaveButton;
 					globals.Loader_practicelobby.movieClip.gameAPI.StartGameButton = oldStartButton;
@@ -965,7 +1008,8 @@
 			
 			globals.Loader_practicelobby.movieClip.gameAPI.StartGameButton = function (){
 				lobbyStateTimer.stop();
-				var doneRegistration:Function = function(){
+				var doneRegistration:Function = function(statusCode:int, data:String){
+					trace("done registration start");
 					oldStartButton();
 					globals.Loader_practicelobby.movieClip.gameAPI.LeaveButton = oldLeaveButton;
 					globals.Loader_practicelobby.movieClip.gameAPI.StartGameButton = oldStartButton;
@@ -987,7 +1031,7 @@
 					errorPanel(failureString + ": " + statusCode + "-- Retrying...", 1000);
 					
 					var retryFunction:Function = function(event:TimerEvent){
-						retryAsyncCall(url, failureString, retries);
+						retryAsyncCall(url, failureString, retries, successCallback, failureCallback);
 					};
 					
 					retries--;
