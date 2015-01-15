@@ -49,7 +49,7 @@
         public var globals:Object;
         public var elementName:String;
 		
-		private var version:String = "0.1";
+		private var version:String = "0.11";
 		private var DEBUG:Boolean = false;
 		private var versionChecked:Boolean = false;
 		
@@ -873,7 +873,7 @@
 						delete state[key];
 					}
 					else{
-						retryAsyncCall("d2mods/api/lobby_left.php?uid=" + key + "&lid=" + lobbyState.lid + "&un=" + lobbyState.players[key] + "&t=" + lobbyState.token, "Player left registration failure");
+						retryAsyncCall("d2mods/api/lobby_left.php?uid=" + key + "&lid=" + lobbyState.lid + "&un=" + escape(lobbyState.players[key]) + "&t=" + lobbyState.token, "Player left registration failure");
 					}
 				}
 				
@@ -882,7 +882,7 @@
 				for (key in state){
 					// new account
 					nextState[key] = state[key];
-					retryAsyncCall("d2mods/api/lobby_joined.php?uid=" + key + "&lid=" + lobbyState.lid + "&un=" + state[key] + "&t=" + lobbyState.token, "Player join registration failure");
+					retryAsyncCall("d2mods/api/lobby_joined.php?uid=" + key + "&lid=" + lobbyState.lid + "&un=" + escape(state[key]) + "&t=" + lobbyState.token, "Player join registration failure");
 				}
 				
 				//PrintTable(nextState);
@@ -913,9 +913,9 @@
 				}
 				
 				if (dirty){
-					retryAsyncCall("d2mods/api/lobby_update.php?lid=" + lobbyState.lid + "&map=" + lobbyState.map
+					retryAsyncCall("d2mods/api/lobby_update.php?lid=" + lobbyState.lid + "&map=" + escape(lobbyState.map)
 								+ "&mp=" + lobbyState.maxPlayers + "&r=" + lobbyState.region
-								+ "&ln=" + lobbyState.lobbyName + "&t=" + lobbyState.token, "Settings update registration failure");
+								+ "&ln=" + escape(lobbyState.lobbyName) + "&t=" + lobbyState.token, "Settings update registration failure");
 				}
 			};
 			
