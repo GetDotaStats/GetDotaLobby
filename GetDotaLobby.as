@@ -49,7 +49,7 @@
         public var globals:Object;
         public var elementName:String;
 		
-		private var version:String = "0.12";
+		private var version:String = "0.13";
 		private var DEBUG:Boolean = false;
 		private var versionChecked:Boolean = false;
 		
@@ -969,11 +969,11 @@
 			
 			var oldLeaveButton = globals.Loader_practicelobby.movieClip.gameAPI.LeaveButton;
 			var oldStartButton = globals.Loader_practicelobby.movieClip.gameAPI.StartGameButton;
-			//var oldButton1 = globals.Loader_popups.movieClip.gameAPI.Button1Clicked;
-			var oldButton1 = globals.Loader_popups.movieClip.onButton1Clicked;
+			var oldButton1 = globals.Loader_popups.movieClip.gameAPI.Button1Clicked;
+			//var oldButton1 = globals.Loader_popups.movieClip.onButton1Clicked;
 			var quitDesc:String = globals.GameInterface.Translate("#DOTA_ConfirmQuitDesc");
 			
-			globals.Loader_popups.movieClip.onButton1Clicked = function (){
+			globals.Loader_popups.movieClip.gameAPI.Button1Clicked = function (){
 				trace("Button 1 pressed");
 				trace(quitDesc);
 				trace(globals.Loader_popups.movieClip.AnimatingPanel.GlimmerAnim.Messages.MSG_Generic.Msg.text);
@@ -998,6 +998,7 @@
 			
 			globals.Loader_practicelobby.movieClip.gameAPI.LeaveButton = function (){
 				lobbyStateTimer.stop();
+				trace("leave game hit");
 				retryAsyncCall("d2mods/api/lobby_close.php?lid=" + lobbyState.lid + "&t=" + lobbyState.token, "Lobby close failure");
 				oldLeaveButton();
 				globals.Loader_practicelobby.movieClip.gameAPI.LeaveButton = oldLeaveButton;
@@ -1008,6 +1009,7 @@
 			
 			globals.Loader_practicelobby.movieClip.gameAPI.StartGameButton = function (){
 				lobbyStateTimer.stop();
+				trace("start game hit");
 				var doneRegistration:Function = function(statusCode:int, data:String){
 					trace("done registration start");
 					oldStartButton();
