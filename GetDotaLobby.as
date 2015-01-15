@@ -1027,7 +1027,7 @@
 			globals.Loader_play.movieClip.setCurrentTab(3); //Set tab to Find Lobbies
 			globals.Loader_play.movieClip.setCurrentFindLobbyTab(3); //Set tab to Private Games
 			
-			var injectTimer:Timer = new Timer(500, 1);
+			var injectTimer:Timer = new Timer(700, 1);
             injectTimer.addEventListener(TimerEvent.TIMER, joinGame);
             injectTimer.start();
 		}
@@ -1051,7 +1051,10 @@
 			var rxGMI = /(\d+)/gi;
 			
 			var msg:String = globals.Loader_popups.movieClip.AnimatingPanel.GlimmerAnim.Messages.MSG_Generic.Msg.text;
-			if (globals.Loader_popups.movieClip.AnimatingPanel.GlimmerAnim.Messages.MSG_Generic.Msg.visible && msg.indexOf(requiredMode) >= 0){
+			if (globals.Loader_popups.movieClip.visible && 
+				globals.Loader_popups.movieClip.AnimatingPanel.visible &&
+				globals.Loader_popups.movieClip.GlimmerAnim.visible &&
+				globals.Loader_popups.movieClip.AnimatingPanel.GlimmerAnim.Messages.MSG_Generic.Msg.visible && msg.indexOf(requiredMode) >= 0){
 				//globals.Loader_popups.movieClip.onOKClicked(new ButtonEvent(ButtonEvent.CLICK));
 				var gmi:String = rxGMI.exec(msg)[1];
 				
