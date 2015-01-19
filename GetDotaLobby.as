@@ -42,6 +42,11 @@
 	import flash.net.URLLoaderDataFormat;
 	import flash.desktop.Clipboard;
 	import flash.desktop.ClipboardFormats;
+	import flash.globalization.DateTimeFormatter;
+	import flash.globalization.LocaleID;
+	import flash.globalization.DateTimeStyle;
+	import flash.text.TextFieldAutoSize;
+	import flash.utils.Dictionary;
 	
 	public class GetDotaLobby extends MovieClip {
 		// Game API related stuff
@@ -49,7 +54,7 @@
         public var globals:Object;
         public var elementName:String;
 		
-		private var version:String = "0.13";
+		private var version:String = "0.14";
 		private var DEBUG:Boolean = false;
 		private var versionChecked:Boolean = false;
 		
@@ -65,21 +70,29 @@
 		public var lobbyMapNameField:TextField;
 		public var lobbySearchField:TextField;
 		
+		public var scalingTopBarPanel:MovieClip;
+		public var joinPanelBg:MovieClip;
+		public var optionsPanelBg:MovieClip;
+		
 		public var originalXScale = -1;
 		public var originalYScale = -1;
 		
 		public var lastReload:Date = null;
 		public var lobbyData:Object = new Object();
+		public var currentOptions:Array;
 		
 		public var gmiToModID:Object;
 		public var gmiToProvider:Object;
 		public var gmiToLobbyProvider:Object;
 		public var gmiToName:Object;
+		public var gmiToOptions:Object;
 		
 		public var retryCount:int = -1;
 		public var currentUrl:String = "";
 		public var lobbyState:Object;
 		public var lobbyStateTimer:Timer;
+		
+		public var fields:Vector.<Object> = new Vector.<Object>();
 		
 		public var modsProvider:DataProvider = new DataProvider();
 		public var lobbyModsProvider:DataProvider = new DataProvider();
@@ -128,21 +141,40 @@
 			// constructor code
 		}
 		
-		public function test7(){
-			trace('7 called');
-			//trace(globals.Loader_lobby_settings.movieClip.LobbySettings.CustomMapsDropDown.selectedIndex);
-			//globals.Loader_lobby_settings.movieClip.LobbySettings.CustomMapsDropDown.setSelectedIndex(1);
-			//trace(globals.Loader_lobby_settings.movieClip.LobbySettings.CustomMapsDropDown.selectedIndex);
-			//trace(this.hostClip.gameModeClip.selectedIndex);
-			//this.hostClip.gameModeClip.setSelectedIndex(1);
-			//trace(this.hostClip.gameModeClip.selectedIndex);
-			//invalidate();
+		public function traceLB(obj:Object){
+			trace(obj);
+			var now:Date = new Date();
+			var ds:String = String(now.hours);
+			if (now.hours < 10)
+				ds = "0" + ds;
+			ds += ":";
+			if (now.minutes < 10)
+				ds += "0";
+			ds += now.minutes + ":";
+				
+			if (now.seconds < 10)
+				ds += "0";
+			ds += now.seconds + ".";
+				
+			if (now.milliseconds < 10)
+				ds += "00";
+			else if (now.milliseconds < 100)
+				ds += "0";
+			ds += now.milliseconds;
 			
-			errorPanel("This is an error, I wonder how long it should be");
+			
+			logPanel.logText.text += "[" + ds + "] " + obj.toString() + "\n";
+			logPanel.logText.textField.scrollV = logPanel.logText.textField.maxScrollV;
+		}
+		
+		public function test7(){
+			traceLB('7 called');
+			
+			redrawOptions();
 		}
 		
 		public function onLoaded() : void {
-			trace("injected by SinZ!\n\n\n");
+			//traceLB("injected by SinZ!\n\n\n");
 			socket = new D2HTTPSocket("getdotastats.com", "176.31.182.87");
 			this.gameAPI.OnReady();
 			
@@ -155,7 +187,6 @@
 				createTestButton("Lobby Status", test6);
 				createTestButton("CMDD", test7);
 			}
-			
 			
 			//  backdrop for host game panel
 			var bgClass:Class = getDefinitionByName("DB_inset") as Class;
@@ -176,6 +207,58 @@
 			globals.Loader_play.movieClip.PlayWindow.PlayMain.Nav.addChild(but);
 			globals.Loader_play.movieClip.PlayWindow.PlayMain.Nav.addChild(but2);
 			
+			// Scaling top bar container panel
+			scalingTopBarPanel = new MovieClip();
+			globals.Loader_top_bar.movieClip.addChild(scalingTopBarPanel);
+			scalingTopBarPanel.x = 0;
+			scalingTopBarPanel.y = 0;
+			scalingTopBarPanel.width = 1600;
+			scalingTopBarPanel.height = 900;
+			scalingTopBarPanel.scaleX = 1;
+			scalingTopBarPanel.scaleY = 1;
+			scalingTopBarPanel.visible = true;
+			
+			// Place help panel
+			joinPanelBg = new bgClass();
+			joinPanelBg.width = joinPanel.width;
+			joinPanelBg.height = joinPanel.height;
+			globals.Loader_play_matchmaking_status.movieClip.play_matchmaking_status.addChild(joinPanelBg);
+			joinPanelBg.x = joinPanel.width / 2 - 15;
+			joinPanelBg.visible = false;
+			
+			this.removeChild(joinPanel);
+			joinPanel.x = joinPanel.width / 2 - 15;
+			joinPanel.y = 0;
+			joinPanel.visible = false;
+			globals.Loader_play_matchmaking_status.movieClip.play_matchmaking_status.addChild(joinPanel);
+			
+			
+			// Log panel background
+			mc = new bgClass();
+			logPanel.addChildAt(mc, 0);
+			mc.visible = true;
+			mc.width = logPanel.width;
+			mc.height = logPanel.height;
+			
+			// Log button
+			this.removeChild(logButton);
+			scalingTopBarPanel.addChild(logButton);
+			logButton.x = 75;
+			logButton.y = 2;
+			logButton.gotoAndStop(1);
+			var logRollOver:Function = function(e:MouseEvent){logButton.gotoAndStop(2);};
+			var logRollOut:Function = function(e:MouseEvent){logButton.gotoAndStop(1);};
+			logButton.addEventListener(MouseEvent.CLICK, showLogPanel, false, 0, true);
+			logButton.addEventListener(MouseEvent.ROLL_OVER, logRollOver, false, 0, true);
+			logButton.addEventListener(MouseEvent.ROLL_OUT, logRollOut, false, 0, true);
+			
+			// Log panel
+			this.removeChild(logPanel);
+			scalingTopBarPanel.addChild(logPanel);
+			logPanel.x = 800 - logPanel.width / 2;
+			logPanel.y = 450 - logPanel.height / 2;
+			logPanel.visible = false;
+			logPanel.closeButton.addEventListener(MouseEvent.CLICK, closeClicked, false, 0, true);
 			
 			mc = new bgClass();
 			hostGameClip = new MovieClip();
@@ -268,9 +351,6 @@
 				 {"label": "19", "data":19},
 				 {"label": "20", "data":20}]));
 			this.hostClip.maxClip.setSelectedIndex(8);
-			
-			
-			
 			
 			
 			// Create lobby browser backdrop
@@ -368,6 +448,8 @@
 			//this.lobbyClip.exLobby.visible = true;			
 			
 			this.lobbyClip.refreshClip = replaceWithValveComponent(this.lobbyClip.refreshClip, "ButtonRefresh2", true);
+			//this.lobbyClip.refreshClip.scaleX = 1.0;
+			//this.lobbyClip.refreshClip.scaleY = 1.0;
 			this.lobbyClip.refreshClip.addEventListener(MouseEvent.CLICK, getLobbyList, false, 0, true);
 			
 			this.lobbyClip.lobbies.content.x = 5;
@@ -375,6 +457,71 @@
 			this.lobbyClip.lobbies.contentMask.y = 15;
 			this.lobbyClip.lobbies.contentMask.width = 915;
 			this.lobbyClip.lobbies.contentMask.height = 494;
+			
+			// Options panel	
+			mc2 = new bgClass2();
+			optionsPanelBg = new MovieClip();
+			optionsPanelBg.addChild(mc2);
+			//this.addChild(lobbyBrowserClip);
+			globals.Loader_top_bar.movieClip.addChild(optionsPanelBg);
+			
+			this.optionsPanel.x = 0;
+			this.optionsPanel.y = 0;
+			this.removeChild(this.optionsPanel);
+			optionsPanelBg.addChild(this.optionsPanel);
+			this.optionsPanel.closeButton.addEventListener(MouseEvent.CLICK, closeClicked, false, 0, true);
+			
+			optionsPanelBg.visible = false;
+			optionsPanelBg.width = this.optionsPanel.width;
+			optionsPanelBg.height = this.optionsPanel.height;
+			optionsPanelBg.scaleX = 1;
+			optionsPanelBg.scaleY = 1;
+			
+			mc2.width = this.optionsPanel.width;
+			mc2.height = this.optionsPanel.height;
+			
+			this.optionsPanel.options = replaceWithValveComponent(this.optionsPanel.options, "ScrollViewTest", true, 0);
+			sb = new sbClass();
+			sb.enabled = true;
+			sb.visible = true;
+			
+			this.optionsPanel.addChild(sb);
+
+			this.optionsPanel.options.scrollBar = sb;
+			this.optionsPanel.options.enabled = true;
+			this.optionsPanel.options.visible = true;
+			
+			panel = new panelClass();
+			panel.visible = true;
+			panel.enabled = true;
+			
+			panel.x = this.optionsPanel.options.content.x;
+			panel.y = this.optionsPanel.options.content.y;
+			panel.width = 505;
+			panel.height = 333;
+			this.optionsPanel.options.addChildAt(panel, 0);
+			this.optionsPanel.options.content.removeChild(this.optionsPanel.options.content.Offline);
+			this.optionsPanel.options.content.removeChild(this.optionsPanel.options.content.Online);
+			this.optionsPanel.options.content.removeChild(this.optionsPanel.options.content.PlayingDota);
+			this.optionsPanel.options.content.removeChild(this.optionsPanel.options.content.Pending);
+			
+			sb.x = this.optionsPanel.options.width + this.optionsPanel.options.x - sb.width;
+			sb.y = this.optionsPanel.options.y;
+			sb.height = 333;
+			
+			this.optionsPanel.options.content.x = 5;
+			this.optionsPanel.options.contentMask.x = -10;
+			this.optionsPanel.options.contentMask.y = 15;
+			this.optionsPanel.options.contentMask.width = 505;
+			this.optionsPanel.options.contentMask.height = 305;
+			
+			// Create Lobby button
+			this.optionsPanel.hostGameButton = replaceWithValveComponent(this.optionsPanel.hostGameButton, "button_big");
+			this.optionsPanel.hostGameButton.x = 252 - this.optionsPanel.hostGameButton.width / 2;
+			this.optionsPanel.hostGameButton.textField.text = "CREATE LOBBY";
+			this.optionsPanel.hostGameButton.label = "CREATE LOBBY";
+			this.optionsPanel.hostGameButton.addEventListener(MouseEvent.CLICK, test1, false, 0 ,true);
+			
 			
 			getPopularMods();
 			
@@ -391,6 +538,34 @@
 				topBarFunc(tab);
 			}
 			
+			var oldLeaveButton:Function = globals.Loader_practicelobby.movieClip.gameAPI.LeaveButton;
+			globals.Loader_practicelobby.movieClip.gameAPI.LeaveButton = function(){
+				joinPanel.visible = false;
+				joinPanelBg.visible = false;
+				oldLeaveButton();
+			};
+			
+			var cleanUp:Function = function(e:TimerEvent){
+				for (var index:int=0; index < fields.length; index++){
+					var field = fields[index];
+					PrintTable(field);
+					var dt:uint = new Date().time;
+					trace(dt);
+					
+					if (field.field == null || field.field.parent == null){
+						delete fields[index];
+					}
+					else if (dt > field.timeout){
+						field.field.parent.removeChild(field.field);
+						delete fields[index];
+					}
+				}
+			};
+			
+			var cleanUpTimer:Timer = new Timer(2000,0);
+			cleanUpTimer.addEventListener(TimerEvent.TIMER, cleanUp);
+			cleanUpTimer.start();
+			
 			//Lets check if we launched dota for a real reason
 			test6(new MouseEvent(MouseEvent.CLICK));
 			
@@ -402,17 +577,17 @@
 		}
 		
 		public function checkVersion(statusCode:int, data:String){
-			trace("##checkVersion");
-			trace(data);
+			traceLB("##checkVersion");
+			traceLB("Client Version: " + version + "  --  Newest Version: " + data);
 			var ver = Number(data);
 			var currentVersion = Number(version);
 			
 			if (ver > currentVersion){
-				trace("not up to date");
+				traceLB("not up to date");
 				
 				var tf:TextField = errorPanel("Lobby Explorer plugin is out of date.  Copy this link to your browser to update.");
 				var link:String = "https://github.com/GetDotaStats/GetDotaLobby/raw/lobbybrowser/play_weekend_tourney.swf";
-				trace(link);
+				traceLB(link);
 				
 				var mc:MovieClip = new MovieClip();
 				mc.x = tf.x;
@@ -430,6 +605,8 @@
 		public function errorPanel(message:String, timeout:Number = 3000, color:uint = 0xFF0000, size:int = 30, align:String = TextFormatAlign.CENTER) : TextField{
 			//  backdrop for host game panel
 			var bgClass:Class = getDefinitionByName("DB_inset") as Class;
+			
+			traceLB("ErrorPanel generated: " + message);
 			
 			var mc = new bgClass();
 			//this.addChild(mc);
@@ -486,12 +663,10 @@
 			//mc.visible = true;
 			
 			var tweenEnd:Function = function(e:TweenEvent){
-				trace("tween finish");
 				field.parent.removeChild(mc);
 		 	};
 			
 			var tweenStart:Function = function(event:TimerEvent){
-				trace("tween start");
 				var tween:Tween = new Tween(field, "alpha", null, 1, 0, 1, true);
 				tween.start();
 				tween.addEventListener(TweenEvent.MOTION_FINISH, tweenEnd, false, 0, true);
@@ -500,6 +675,9 @@
 			var timer:Timer = new Timer(timeout, 1);
 			timer.addEventListener(TimerEvent.TIMER, tweenStart, false, 0, true);
 			timer.start();
+
+			var ti:uint = (new Date().time) + timeout;
+			fields.push({timeout:ti, field:field});
 			
 			return field;
 		}
@@ -533,7 +711,6 @@
 		}
 		
 		public function hostModeChange(event:ListEvent){
-			trace("hostmodechange");
 			var gmi:Number = this.hostClip.gameModeClip.menuList.dataProvider[this.hostClip.gameModeClip.selectedIndex].data;
 			
 			this.hostClip.mapNameClip.setDataProvider(this.gmiToProvider[gmi]);
@@ -542,7 +719,6 @@
 		}
 		
 		public function lobbyModeChange(event:ListEvent){
-			trace("lobbymodechange");
 			var gmi:Number = this.lobbyClip.gameModeClip.menuList.dataProvider[this.lobbyClip.gameModeClip.selectedIndex].data;
 			
 			this.lobbyClip.mapNameClip.setDataProvider(this.gmiToLobbyProvider[gmi]);
@@ -552,15 +728,19 @@
 		}
 		
 		public function closeClicked(event:MouseEvent){
-			trace("Close Clicked");
 			hostGameClip.visible = false;
 			lobbyBrowserClip.visible = false;
+			logPanel.visible =false;
+			optionsPanelBg.visible = false;
+			currentOptions = new Array();
 		}
 		
 		public function hostGame(event:MouseEvent){
-			trace("CLICKED host game");
 			hostGameClip.visible = true;
 			lobbyBrowserClip.visible = false;
+			logPanel.visible = false;
+			optionsPanelBg.visible = false;
+			currentOptions = new Array();
 			
 			if (!versionChecked){
 				versionChecked = true;
@@ -569,18 +749,14 @@
 		}
 		
 		public function lobbyBrowser(event:MouseEvent){
-			trace("CLICKED");
 			hostGameClip.visible = false;
 			lobbyBrowserClip.visible = true;
+			logPanel.visible = false;
+			optionsPanelBg.visible = false;
+			currentOptions = new Array();
 			
 			if (this.lobbyClip.refreshClip.enabled){
 				getLobbyList();
-				if (!versionChecked){
-					versionChecked = true;
-					var waitTimer2:Timer = new Timer(5000, 1);
-					waitTimer2.addEventListener(TimerEvent.TIMER, checkVersionCall, false, 0, true);
-					waitTimer2.start();
-				}
 			}
 			else{
 				if (!versionChecked){
@@ -590,17 +766,34 @@
 			}
 		}
 		
+		public function showLogPanel(event:MouseEvent){
+			hostGameClip.visible = false;
+			lobbyBrowserClip.visible = false;
+			logPanel.visible = !logPanel.visible;
+			optionsPanelBg.visible = false;
+			currentOptions = new Array();
+		}
+		
 		public function createLobbyClick(event:MouseEvent){
 			// Generate random 16 character password all upper case
 			this.target_password = "";
 			for (var i:int = 0; i<10; i++)
 				this.target_password += String.fromCharCode(Math.floor(Math.random() * 26) + 65);
 			
-			test1(event);
+			var gmi:Number = this.hostClip.gameModeClip.menuList.dataProvider[this.hostClip.gameModeClip.selectedIndex].data;
 			this.hostGameClip.visible = false;
+			
+			if (gmiToOptions[gmi] == null)
+				test1(event);
+			else{
+				this.optionsPanelBg.visible = true;
+				redrawOptions();
+			}
 		}
 		
 		public function test1(event:MouseEvent) { //Create Game
+			this.hostGameClip.visible = false;
+			this.optionsPanelBg.visible = false;
 			globals.Loader_top_bar.movieClip.gameAPI.DashboardSwitchToSection(2); //Set topbar to DASHBOARD_SECTION_PLAY
 			globals.Loader_play.movieClip.setCurrentTab(12); //Set tab to CustomGames
 			
@@ -608,18 +801,43 @@
 			globals.Loader_custom_games.movieClip.setCurrentCustomGameSubTab(0); //We want gamemodes, not lobbies
 			globals.Loader_custom_games.movieClip.gameAPI.OnCustomGameModeSortingComboChanged(5); //Typical valve, requires gameAPI for it to work
 			
+			
+			
+			if(globals.Loader_custom_games.movieClip.CustomGames.ModeList.PreviousButton.visible){
+				globals.Loader_custom_games.movieClip.gameAPI.OnCustomGameModeListPreviousPageClicked();
+			}
+				
+			//var nextPageTimer:Timer = new Timer(50, 1);
+			//nextPageTimer.addEventListener(TimerEvent.TIMER, createGame);
+			//nextPageTimer.start();
+			
+			var pageFlip:Function = function(e:TimerEvent){
+				if(globals.Loader_custom_games.movieClip.CustomGames.ModeList.PreviousButton.visible){
+					globals.Loader_custom_games.movieClip.gameAPI.OnCustomGameModeListPreviousPageClicked();
+					var repeatTimer:Timer = new Timer(50, 1);
+					repeatTimer.addEventListener(TimerEvent.TIMER, pageFlip);
+					repeatTimer.start();
+					return;
+				}
+				else
+				{
+					createGame(e);
+				}
+			};
+			
 			var injectTimer:Timer = new Timer(50, 1);
-            injectTimer.addEventListener(TimerEvent.TIMER, createGame);
+            injectTimer.addEventListener(TimerEvent.TIMER, pageFlip);
             injectTimer.start();
 		}
+		
 		public function createGame(e:TimerEvent) {
-			trace("##PAGE COUNT: "+ globals.Loader_custom_games.movieClip.CustomGames.ModeList.PageLabel.text);
+			traceLB("##PAGE COUNT: "+ globals.Loader_custom_games.movieClip.CustomGames.ModeList.PageLabel.text);
 			var nextPages:int = 1;
 			var regex:RegExp = /(\d+).+(\d+)/ig;
 			var pages:String = globals.Loader_custom_games.movieClip.CustomGames.ModeList.PageLabel.text;
 			var groups:Array = regex.exec(pages);
 			nextPages = int(groups[2]);
-			trace(nextPages);
+			traceLB(nextPages);
 			
 			//For testing, lets just do Legends of Dota
 			//PrintTable(globals.Loader_custom_games.movieClip.CustomGames.ModeList);
@@ -632,7 +850,6 @@
 				var obj = globals.Loader_custom_games.movieClip.CustomGames.ModeList.Rows["row"+i].FlyOutButton;
 				
 				if (obj.GameModeID == false) {
-					trace("ROW "+i+" IS A LIE!!");
 					continue;
 				}
 				
@@ -646,12 +863,12 @@
 				}
 			}
 			if (haventFoundGame) {
-				trace("Geez, git good");
+				//traceLB("Geez, git good");
 				if (int(groups[1]) == nextPages){
-					trace('super done'); // no more pages
+					//traceLB('super done'); // no more pages
 					var tf:TextField = errorPanel("Game Mode not found.  Copy this link to your browser to subscribe.");
 					var link:String = "http://steamcommunity.com/sharedfiles/filedetails/?id=" + gmi;
-					trace(link);
+					traceLB(link);
 					
 					var mc:MovieClip = new MovieClip();
 					mc.x = tf.x;
@@ -695,15 +912,16 @@
 			field.width = field.textWidth + 30 * correctedRatio;
 			field.x = (screenWidth - field.width) / 2;
 			
+			var tweenEnd:Function = function(e:TweenEvent){
+				if (field.parent != null)
+					field.parent.removeChild(field);
+		 	};
 			
 			var tween:Tween = new Tween(field, "alpha", null, 1, 0, 2, true);
 			tween.addEventListener(TweenEvent.MOTION_FINISH, tweenEnd, false, 0, true);
 			tween.stop();
 			
-			var tweenEnd:Function = function(e:TweenEvent){
-				trace("tween finish");
-				field.parent.removeChild(mc);
-		 	};
+			
 			
 			var focusOut:Function = function(event:FocusEvent){
 				//removeTimer.start();
@@ -756,7 +974,7 @@
 				for (var i:int = 0;i < cmdd.menuList.dataProvider.length; i++){
 					var o:Object = cmdd.menuList.dataProvider.requestItemAt(i);
 					if (map == o.label){
-						trace("FOUND, setting index");
+						traceLB("FOUND, setting index");
 						cmdd.setSelectedIndex(i);
 						break;
 					}
@@ -785,7 +1003,33 @@
 				+ "&mp=" + lobbyState.maxPlayers
 				+ "&r=" + lobbyState.region
 				+ "&ln=" + escape(lobbyName)
-				+ "&un=" + escape(lobbyState.hostName);
+				+ "&un=" + escape(lobbyState.hostName)
+				+ "&lv=" + version;
+			
+			
+			if (currentOptions.length > 0){
+				try{
+					var lo:Object = new Object();
+					for (var id:Object in currentOptions){
+						var option = currentOptions[id];
+						if (option.type == "dropdown"){
+							lo[option.name] = option.control.menuList.dataProvider.requestItemAt(option.control.selectedIndex).data;
+						}
+						else if (option.type == "checkbox"){
+							lo[option.name] = option.control.selected;
+						}
+						else if (option.type == "textbox"){
+							lo[option.name] = option.control.text;
+						}
+					}
+					
+					currentUrl += "&lo=" + escape(encode(lo));
+					currentOptions = new Array();
+				}catch(err:Error){
+					traceLB("Options encoding failure.");
+					traceLB(err.getStackTrace());
+				}
+			}
 			
 			registerLobby();
 		}
@@ -795,12 +1039,24 @@
 		}
 		
 		public function createdGame(statusCode:int, data:String) {
-			trace("##CREATED_GAME");
-			trace("Status code: " + statusCode);
+			traceLB("##CREATED_GAME");
+			traceLB("Status code: " + statusCode);
 			//if (globals.Loader_popups.movieClip.visible)
 //				globals.Loader_popups.movieClip.beginClose();
+
+			var json = null;
+			var fail:Boolean = false;
+			traceLB(data);
+			try{
+				json = decode(data);
+			}
+			catch(err:Error){
+				traceLB("JSON decode failure");
+				traceLB(err.getStackTrace());
+				fail = true;
+			}
 				
-			if (statusCode != 200){
+			if (fail || statusCode != 200){
 				// Rerun? show failure
 				if (retryCount == -1)
 					retryCount = 2;
@@ -819,11 +1075,8 @@
 				return;
 			}
 			
-			var json = decode(data);
-			trace(data);
-			
 			if (json.error != null){
-				trace("error: " + json.error);
+				traceLB("error: " + json.error);
 				errorPanel("Lobby registration failed: " + json.error);
 				return;
 			}
@@ -856,26 +1109,54 @@
 				oldSetPlayerPool(param1, param2, param3, param4);
 			};*/
 			
+			var count:int = 0;
+			
 			var stateWatcher:Function = function(event:TimerEvent){
-				trace("statewatcher");
+				traceLB("statewatcher");
 				var state:Object = new Object();
 				var i:int = 0;
 				var practiceLobby = globals.Loader_practicelobby.movieClip.PracticeLobby;
 				var account:uint = 0;
 				
-				//trace('----');
-				//trace("Pools");
+				var keepaliveCallback:Function = function(statusCode:int, data:String) {
+					traceLB("##keepalivecallback");
+					traceLB(statusCode + " -- " + data);
+					
+					var json = null;
+					var fail:Boolean = false;
+					try{
+						json = decode(data);
+						if (json.error != null){
+							errorPanel("Keepalive failure: " + json.error);
+						}
+						else if (json.lobby_active == 0){
+							errorPanel("Lobby Timed Out!  It is no longer possible to join this lobby via the browser.");
+						}
+					}catch(err:Error){
+						fail = true;
+						traceLB(err.getStackTrace());
+						//errorPanel("Keepalive call failed");
+					}
+				};
+				
+				if (count % 20 == 0){
+					socket.getDataAsync("d2mods/api/lobby_keep_alive.php?lid=" + lobbyState.lid + "&t=" + lobbyState.token, keepaliveCallback);
+				}
+				count++;
+				
+				//traceLB('----');
+				//traceLB("Pools");
 				for (i=0; i<12; i++){
-					//trace(i + " -- " + practiceLobby["PlayerPool" + i].visible + " -- " + practiceLobby["PlayerPool" + i].accountID + " -- " + practiceLobby["PlayerPool" + i].KickButton.visible);
+					//traceLB(i + " -- " + practiceLobby["PlayerPool" + i].visible + " -- " + practiceLobby["PlayerPool" + i].accountID + " -- " + practiceLobby["PlayerPool" + i].KickButton.visible);
 					if (practiceLobby["PlayerPool" + i].visible && practiceLobby["PlayerPool" + i].accountID)
 						state[practiceLobby["PlayerPool" + i].accountID] = practiceLobby["PlayerPool" + i].Player.PlayerNameIngame.text; //true;
 				}				
-				//trace('----');
-				//trace('Broadcasters');
+				//traceLB('----');
+				//traceLB('Broadcasters');
 				for (i=0; i<6; i++){
-					//trace(i)
+					//traceLB(i)
 					for (var j:int = 0; j<4; j++){
-						/*trace("\t" + j + " -- " + practiceLobby["Broadcaster" + i]["Player" + j].visible 
+						/*traceLB("\t" + j + " -- " + practiceLobby["Broadcaster" + i]["Player" + j].visible 
 							  + " -- " + practiceLobby["Broadcaster" + i]["Player" + j].accountID
 							  + " -- " + practiceLobby["Broadcaster" + i]["Player" + j].Player.visible
 							  + " -- " + practiceLobby["Broadcaster" + i]["Player" + j].Player.PlayerNameIngame.visible
@@ -886,10 +1167,10 @@
 							state[practiceLobby["Broadcaster" + i]["Player" + j].accountID] = practiceLobby["Broadcaster" + i]["Player" + j].Player.PlayerNameIngame.text //true;
 					}
 				}
-				//trace('----');
-				//trace('Players');
+				//traceLB('----');
+				//traceLB('Players');
 				for (i=0; i<10; i++){
-					/*trace(i + " -- " + practiceLobby["Player" + i].visible + practiceLobby["Player" + i].accountID
+					/*traceLB(i + " -- " + practiceLobby["Player" + i].visible + practiceLobby["Player" + i].accountID
 						  + " -- " + practiceLobby["Player" + i].PlayerName.visible
 						  + " -- " + practiceLobby["Player" + i].PlayerName.PlayerNameIngame.visible
 						  + " -- " + practiceLobby["Player" + i].PlayerName.PlayerNameIngame.text
@@ -903,8 +1184,8 @@
 				
 				var nextState:Object = new Object();
 				var key:Object;
-				//trace('=======');
-				//trace('=======');
+				//traceLB('=======');
+				//traceLB('=======');
 				
 				//PrintTable(state);
 				
@@ -928,7 +1209,7 @@
 				}
 				
 				//PrintTable(nextState);
-				//trace("-----");
+				//traceLB("-----");
 				
 				lobbyState.players = nextState;
 				
@@ -936,9 +1217,9 @@
 				var lname:String = globals.Loader_lobby_settings.movieClip.LobbySettings.gamenamefield.text;
 				var lpass:String = globals.Loader_lobby_settings.movieClip.LobbySettings.passwordInput.text;
 				var lmap:String = globals.Loader_lobby_settings.movieClip.LobbySettings.CustomMapsDropDown.label;
-				//trace("lname: " + lname);
-				//trace("lpass: " + lpass);
-				//trace("lmap: " + lmap);
+				//traceLB("lname: " + lname);
+				//traceLB("lpass: " + lpass);
+				//traceLB("lmap: " + lmap);
 				
 				var dirty:Boolean = false;
 				if (lobbyState.lobbyName != lname){
@@ -974,9 +1255,9 @@
 			var quitDesc:String = globals.GameInterface.Translate("#DOTA_ConfirmQuitDesc");
 			
 			globals.Loader_popups.movieClip.gameAPI.Button1Clicked = function (){
-				trace("Button 1 pressed");
-				trace(quitDesc);
-				trace(globals.Loader_popups.movieClip.AnimatingPanel.GlimmerAnim.Messages.MSG_Generic.Msg.text);
+				traceLB("Button 1 pressed");
+				traceLB(quitDesc);
+				traceLB(globals.Loader_popups.movieClip.AnimatingPanel.GlimmerAnim.Messages.MSG_Generic.Msg.text);
 				
 				if (globals.Loader_popups.movieClip.AnimatingPanel.GlimmerAnim.Messages.MSG_Generic.Msg.text != quitDesc){
 					oldButton1();
@@ -984,7 +1265,7 @@
 				}
 				
 				lobbyStateTimer.stop();
-				trace("QUITTING TIME")
+				traceLB("QUITTING TIME")
 				var doneRegistration:Function = function(statusCode:int, data:String){		
 					oldButton1();
 					globals.Loader_practicelobby.movieClip.gameAPI.LeaveButton = oldLeaveButton;
@@ -998,7 +1279,7 @@
 			
 			globals.Loader_practicelobby.movieClip.gameAPI.LeaveButton = function (){
 				lobbyStateTimer.stop();
-				trace("leave game hit");
+				traceLB("leave game hit");
 				retryAsyncCall("d2mods/api/lobby_close.php?lid=" + lobbyState.lid + "&t=" + lobbyState.token, "Lobby close failure");
 				oldLeaveButton();
 				globals.Loader_practicelobby.movieClip.gameAPI.LeaveButton = oldLeaveButton;
@@ -1009,9 +1290,8 @@
 			
 			globals.Loader_practicelobby.movieClip.gameAPI.StartGameButton = function (){
 				lobbyStateTimer.stop();
-				trace("start game hit");
+				traceLB("start game hit");
 				var doneRegistration:Function = function(statusCode:int, data:String){
-					trace("done registration start");
 					oldStartButton();
 					globals.Loader_practicelobby.movieClip.gameAPI.LeaveButton = oldLeaveButton;
 					globals.Loader_practicelobby.movieClip.gameAPI.StartGameButton = oldStartButton;
@@ -1024,11 +1304,22 @@
  		}
 		
 		public function retryAsyncCall(url:String, failureString:String, retries:int = 2, successCallback:Function = null, failureCallback:Function = null){
-			trace(retries + " retryAsyncCall: " + url);
+			traceLB(retries + " retryAsyncCall: " + url);
 			var retryAsyncCallback:Function = function(statusCode:int, data:String){
-				trace("###retryAsyncCallback");
-				trace("Status code: " + statusCode);
-				if (statusCode != 200){
+				traceLB("###retryAsyncCallback");
+				traceLB("Status code: " + statusCode);
+				
+				var json = null;
+				var fail:Boolean = false;
+				try{
+					json = decode(data);
+				}catch(err:Error){
+					traceLB(err.getStackTrace());
+					fail = true;
+				}
+				traceLB(data);
+				
+				if (fail || statusCode != 200){
 					// Rerun? show failure
 					errorPanel(failureString + ": " + statusCode + "-- Retrying...", 1000);
 					
@@ -1049,9 +1340,6 @@
 					return;
 				}
 				
-				var json = decode(data);
-				trace(data);
-				
 				if (json.error != null){
 					errorPanel(failureString + ": " + json.error);
 					if (failureCallback != null)
@@ -1066,7 +1354,7 @@
 		}
 		
 		public function test2(event:MouseEvent, pass:String = "asdf") { //Join Game
-			trace(pass);
+			//traceLB(pass);
 			globals.Loader_play.movieClip.gameAPI.SetPracticeLobbyFilter(pass); //Set password
 			
 			globals.Loader_top_bar.movieClip.gameAPI.DashboardSwitchToSection(2); //Set topbar to DASHBOARD_SECTION_PLAY
@@ -1079,7 +1367,7 @@
 		}
 		public function joinGame(e:TimerEvent) {
 			if (!globals.Loader_play.movieClip.PlayWindow.PlayMain.FindLobby.PrivateContent.game0.visible){
-				trace("NO GAME FOUND"); // Probably should pop that up
+				traceLB("NO GAME FOUND"); // Probably should pop that up
 				errorPanel("No Lobby Found.  The game may have begun or been closed.");
 				return;
 			}
@@ -1089,6 +1377,9 @@
 			var injectTimer:Timer = new Timer(1000, 1);
             injectTimer.addEventListener(TimerEvent.TIMER, checkForMissingMode);
             injectTimer.start();
+			
+			joinPanel.visible = true;
+			joinPanelBg.visible = true;
 		}
 		
 		public function checkForMissingMode(e:TimerEvent){
@@ -1107,7 +1398,7 @@
 				
 				var tf:TextField = errorPanel("Game Mode not found.  Copy this link to your browser to subscribe.");
 				var link:String = "http://steamcommunity.com/sharedfiles/filedetails/?id=" + gmi;
-				trace(link);
+				traceLB(link);
 				
 				var mc:MovieClip = new MovieClip();
 				mc.x = tf.x;
@@ -1130,7 +1421,7 @@
 		}
 		
 		public function reenableRefresh(event:TimerEvent){
-			trace("REENABLE");
+			traceLB("REENABLE");
 			this.lobbyClip.refreshClip.enabled = true;
 		}
 		
@@ -1155,28 +1446,55 @@
 		}
 		
 		public function getLobbyListCallback(statusCode:int, data:String) {
-			trace("###GetLobbyList");
-			trace("Status code: " + statusCode);
+			traceLB("###GetLobbyList");
+			traceLB("Status code: " + statusCode);
 			if (statusCode != 200){
 				errorPanel("List Retrieval Failure: " + statusCode);
 				// Rerun? show failure
+				if (!versionChecked){
+					versionChecked = true;
+					var waitTimer2:Timer = new Timer(4000, 1);
+					waitTimer2.addEventListener(TimerEvent.TIMER, checkVersionCall, false, 0, true);
+					waitTimer2.start();
+				}
 				return;
 			}
-			var json = decode(data);
+			var fail:Boolean = false;
+			var json = null;
+			try{
+				json = decode(data);
+			}catch(err:Error){
+				fail = true;
+				traceLB(err.getStackTrace());
+			}
 			
 			var ld:Object = new Object();
 			var refreshTime:Number = new Date().time + 5000;
 			
-			if (json.error == null){
+			if (!fail && json.error == null){
 				for (var i:int=0; i< json.length; i++){
 					var lobby:Object = json[i];
 					lobby.refreshTime = refreshTime;
 					ld[lobby.lobby_id] = lobby;
 				}
+				if (!versionChecked){
+					versionChecked = true;
+					checkVersionCall(new TimerEvent(TimerEvent.TIMER));
+				}
 			}
 			else{
-				trace("NO ACTIVE LOBBIES");
-				errorPanel(json.error);
+				traceLB("NO ACTIVE LOBBIES");
+				if (json.error)
+					errorPanel(json.error);
+				else
+					errorPanel("Unable to retrieve lobby list from server.  Please try again");
+				
+				if (!versionChecked){
+					versionChecked = true;
+					var waitTimer:Timer = new Timer(4000, 1);
+					waitTimer.addEventListener(TimerEvent.TIMER, checkVersionCall, false, 0, true);
+					waitTimer.start();
+				}
 			}
 			
 			this.lobbyData = ld;
@@ -1185,7 +1503,7 @@
 		}
 		
 		public function redrawLobbyList(){
-			trace("##redrawLobby");
+			traceLB("##redrawLobby");
 			
 			var content:MovieClip = this.lobbyClip.lobbies.content;
 			for (var i:int = content.numChildren-1; i>=0; i--){
@@ -1255,6 +1573,116 @@
 			this.lobbyClip.lobbies.updateScrollBar();
 		}
 		
+		public function redrawOptions(){
+			traceLB("##redrawOptions");
+			
+			var content:MovieClip = this.optionsPanel.options.content;
+			for (var i:int = content.numChildren-1; i>=0; i--){
+				content.removeChildAt(i);
+			}
+			
+			// Get Mod Option info
+			var gmi:Number = this.hostClip.gameModeClip.menuList.dataProvider[this.hostClip.gameModeClip.selectedIndex].data;
+			var opts = gmiToOptions[gmi];
+			/*var opts = decode('[{"type":"dropdown","label":"Game Mode","name":"gamemode","default":"All Pick","options":[{"label":"All Pick","data":"1"},{"label":"Single Draft","data":"2"}, {"label":"Mirror Draft","data":"3"}, {"label":"All Random","data":"4"}]},{"type":"dropdown","label":"Max Slots","name":"maxslots","default":"6 slots","options":[{"label":"4 Slots","data":"4"},{"label":"5 Slots","data":"5"}, {"label":"6 Slots","data":"6"}]},{"type":"dropdown","label":"Max Skills","name":"maxskills","default":"6 Skills","options":[{"label":"No Regular Abilities","data":"0"},{"label":"1 Regular Ability","data":"1"}, {"label":"2 Regular Abilities","data":"2"}, {"label":"3 Regular Abilities","data":"3"}, {"label":"4 Regular Abilities","data":"4"}, {"label":"5 Regular Abilities","data":"5"}, {"label":"6 Regular Abilities","data":"6"}]},{"type":"dropdown","label":"Max Ults","name":"maxults","default":"2 Ultimate Abilities","options":[{"label":"No Ultimate Abilities","data":"0"},{"label":"1 Ultimate Skill","data":"1"}, {"label":"2 Ultimate Abilities","data":"2"}, {"label":"3 Ultimate Abilities","data":"3"}, {"label":"4 Ultimate Abilities","data":"4"}, {"label":"5 Ultimate Abilities","data":"5"}, {"label":"6 Ultimate Abilities","data":"6"}]},{"type":"dropdown","label":"Max Bans","name":"maxbans","default":"5 Bans Each","options":[{"label":"No Bans","data":"0"},{"label":"1 Ban Each","data":"1"}, {"label":"2 Bans Each","data":"2"}, {"label":"3 Bans Each","data":"3"}, {"label":"5 Bans Each","data":"5"}, {"label":"10 Bans Each","data":"10"}, {"label":"15 Bans Each","data":"15"}, {"label":"20 Bans Each","data":"20"}, {"label":"Host Banning","data":"-1"}]},{"type":"checkbox","label":"Block Troll Combos","name":"blocktrollcombos","default":true},{"type":"dropdown","label":"Starting Level","name":"startinglevel","default":"Level 1","options":[{"label":"Level 1","data":"1"},{"label":"Level 6","data":"6"}, {"label":"Level 11","data":"11"}, {"label":"Level 16","data":"16"}, {"label":"Level 25","data":"25"}]},{"type":"checkbox","label":"Enable Easy Mode","name":"useeasymode","default":false},{"type":"checkbox","label":"Hide Enemy Picks","name":"hideenemypicks","default":true},{"type":"dropdown","label":"Bonus Starting Gold","name":"bonusstartinggold","default":"None","options":[{"label":"0g","data":"0"},{"label":"250g","data":"250"}, {"label":"500g","data":"500"}, {"label":"1000g","data":"1000"}, {"label":"2500g","data":"2500"}, {"label":"5000g","data":"5000g"}, {"label":"10000g","data":"10000"}, {"label":"25000g","data":"25000"}, {"label":"50000g","data":"50000"}, {"label":"100000","data":"100000"}]},{"type":"dropdown","label":"Unique Skills","name":"uniqueskills","default":"Off","options":[{"label":"Off","data":"0"},{"label":"Unique Team Skills","data":"1"}, {"label":"Unique Global Skills","data":"3"}]},'
+							  +'{"type":"dropdown","label":"Game Mode","name":"gamemode","default":"All Pick","options":[{"label":"All Pick","data":"1"},{"label":"Single Draft","data":"2"}, {"label":"Mirror Draft","data":"3"}, {"label":"All Random","data":"4"}]},{"type":"dropdown","label":"Max Slots","name":"maxslots","default":"6 slots","options":[{"label":"4 Slots","data":"4"},{"label":"5 Slots","data":"5"}, {"label":"6 Slots","data":"6"}]},{"type":"dropdown","label":"Max Skills","name":"maxskills","default":"6 Skills","options":[{"label":"No Regular Abilities","data":"0"},{"label":"1 Regular Ability","data":"1"}, {"label":"2 Regular Abilities","data":"2"}, {"label":"3 Regular Abilities","data":"3"}, {"label":"4 Regular Abilities","data":"4"}, {"label":"5 Regular Abilities","data":"5"}, {"label":"6 Regular Abilities","data":"6"}]},{"type":"dropdown","label":"Max Ults","name":"maxults","default":"2 Ultimate Abilities","options":[{"label":"No Ultimate Abilities","data":"0"},{"label":"1 Ultimate Skill","data":"1"}, {"label":"2 Ultimate Abilities","data":"2"}, {"label":"3 Ultimate Abilities","data":"3"}, {"label":"4 Ultimate Abilities","data":"4"}, {"label":"5 Ultimate Abilities","data":"5"}, {"label":"6 Ultimate Abilities","data":"6"}]},{"type":"dropdown","label":"Max Bans","name":"maxbans","default":"5 Bans Each","options":[{"label":"No Bans","data":"0"},{"label":"1 Ban Each","data":"1"}, {"label":"2 Bans Each","data":"2"}, {"label":"3 Bans Each","data":"3"}, {"label":"5 Bans Each","data":"5"}, {"label":"10 Bans Each","data":"10"}, {"label":"15 Bans Each","data":"15"}, {"label":"20 Bans Each","data":"20"}, {"label":"Host Banning","data":"-1"}]},{"type":"checkbox","label":"Block Troll Combos","name":"blocktrollcombos","default":true},{"type":"dropdown","label":"Starting Level","name":"startinglevel","default":"Level 1","options":[{"label":"Level 1","data":"1"},{"label":"Level 6","data":"6"}, {"label":"Level 11","data":"11"}, {"label":"Level 16","data":"16"}, {"label":"Level 25","data":"25"}]},{"type":"checkbox","label":"Enable Easy Mode","name":"useeasymode","default":false},{"type":"checkbox","label":"Hide Enemy Picks","name":"hideenemypicks","default":true},{"type":"dropdown","label":"Bonus Starting Gold","name":"bonusstartinggold","default":"None","options":[{"label":"0g","data":"0"},{"label":"250g","data":"250"}, {"label":"500g","data":"500"}, {"label":"1000g","data":"1000"}, {"label":"2500g","data":"2500"}, {"label":"5000g","data":"5000g"}, {"label":"10000g","data":"10000"}, {"label":"25000g","data":"25000"}, {"label":"50000g","data":"50000"}, {"label":"100000","data":"100000"}]},{"type":"dropdown","label":"Unique Skills","name":"uniqueskills","default":"Off","options":[{"label":"Off","data":"0"},{"label":"Unique Team Skills","data":"1"}, {"label":"Unique Global Skills","data":"3"}]},{"type":"textbox","label":"Text Box Test","name":"textTest","default":"Default Text"}]');
+							  */
+			
+			var searchFilter:String = this.lobbySearchField.text;
+			var modeFilter:Number = this.lobbyClip.gameModeClip.menuList.dataProvider[this.lobbyClip.gameModeClip.selectedIndex].data
+			var mapFilter:String = this.lobbyClip.mapNameClip.menuList.dataProvider[this.lobbyClip.mapNameClip.selectedIndex].data
+			var regionFilter:Number = this.lobbyClip.regionClip.menuList.dataProvider[this.lobbyClip.regionClip.selectedIndex].data
+			
+			currentOptions = new Array();
+			
+			var curY:int = 15;
+			for (var id:Object in opts){
+				var option:Object = opts[id];
+				if (option == null)
+					continue;
+					
+				var curOpt = new Object();
+				curOpt.name = option.name;
+				curOpt.type = option.type;
+				curOpt.textField = createTextField();
+				
+				var bgClass:Class = getDefinitionByName("DB_inset") as Class;
+				var checkClass:Class = getDefinitionByName("DotaCheckBoxDota") as Class;
+				var mc:MovieClip;
+				
+				if (option.type == "dropdown"){
+					mc = new bgClass();
+					this.addChild(mc);
+					curOpt.control = replaceWithValveComponent(mc, "ComboBoxSkinned");
+					curOpt.control.rowHeight = 24;
+					var dp:DataProvider = new DataProvider(option.options)
+					curOpt.control.visibleRows = dp.length;
+					if (dp.length > 6){
+						curOpt.control.visibleRows = 6;
+						curOpt.control.showScrollBar = true;
+					}
+					curOpt.control.setDataProvider(dp);
+					curOpt.control.setSelectedIndex(0);
+					for (var j:int=0; j<dp.length; j++){
+						if (dp.requestItemAt(j).label == option.default){
+							curOpt.control.setSelectedIndex(j);
+							break;
+						}
+					}
+					
+					curOpt.control.visible = true;
+					curOpt.control.x = 530 * .45;
+					curOpt.control.y = curY;
+					curOpt.control.width = 530 * .50 - 10 - this.optionsPanel.options.scrollBar.width;
+				}
+				else if (option.type == "checkbox"){
+					curOpt.control = new checkClass();
+					curOpt.control.enabled = true;
+					if (option.default)
+						curOpt.control.selected = true;
+					else
+						curOpt.control.selected = false;
+					
+					curOpt.control.visible = true;
+					curOpt.control.x = 530 * .45;
+					curOpt.control.y = curY;
+					curOpt.control.label = "";
+					//curOpt.control.width = 530 * .50 - 10 - this.optionsPanel.options.scrollBar.width;
+				}
+				else if (option.type == "textbox"){
+					mc = new bgClass();
+					mc.visible = true;
+					mc.x = 530 * .45;
+					mc.y = curY;
+					mc.width = 530 * .50 - 10 - this.optionsPanel.options.scrollBar.width;
+					mc.height = 24;
+					this.optionsPanel.options.content.addChild(mc);
+					curOpt.control = createTextInput(mc, 16);
+					curOpt.control.text = option.default;
+					
+					curOpt.control.visible = true;
+					curOpt.control.x = 530 * .45;
+					curOpt.control.y = curY;
+					curOpt.control.width = 530 * .50 - 10 - this.optionsPanel.options.scrollBar.width;
+				}
+				currentOptions.push(curOpt);
+				
+				curOpt.textField.visible = true;
+				curOpt.textField.x = 10;
+				curOpt.textField.y = curY;
+				curOpt.textField.width = 533 * .35;
+				curOpt.textField.text = option.label;
+				
+				
+				this.optionsPanel.options.content.addChild(curOpt.textField);
+				this.optionsPanel.options.content.addChild(curOpt.control);
+				
+				curY += 8 + curOpt.control.height;
+			}
+			
+			this.optionsPanel.options.updateScrollBar();
+		}
+		
 		public function refreshLobby(event:MouseEvent){
 			var lid:int = event.currentTarget.lobbyID;
 			var lobby:Object = lobbyData[lid];
@@ -1266,8 +1694,8 @@
 			
 			socket.getDataAsync("d2mods/api/lobby_status.php?lid=" + lid, 
 				function (statusCode:int, data:String){
-					trace("###LobbyRefresh");
-					trace("Status code: " + statusCode);
+					traceLB("###LobbyRefresh");
+					traceLB("Status code: " + statusCode);
 					if (statusCode != 200){
 						// Rerun? show failure
 						errorPanel("Lobby Refresh Failure: " + statusCode);
@@ -1333,9 +1761,20 @@
 		}
 		
 		public function getPopularModsCallback(statusCode:int, data:String) {
-			trace("###GetMods");
-			trace("Status code: " + statusCode);
-			if (statusCode != 200){
+			traceLB("###GetMods");
+			traceLB("Status code: " + statusCode);
+			
+			var fail:Boolean = false;
+			var json = null;
+			try{
+				json = decode(data);
+			}catch(err:Error){
+				fail = true;
+				traceLB(err.getStackTrace());
+			}
+			//traceLB(data);
+			
+			if (fail || statusCode != 200){
 				// Rerun? show failure
 				if (retryCount == -1)
 					retryCount = 2;
@@ -1347,14 +1786,13 @@
 				}
 				errorPanel("Unable Connect to GetDotaStats for Mod List: " + statusCode + " -- Retrying...");
 				
-				var retry:Timer = new Timer(3000, 1);
-				retry.addEventListener(TimerEvent.TIMER, getPopularMods);
-				retry.start();
+				var retryTimer:Timer = new Timer(3000, 1);
+				retryTimer.addEventListener(TimerEvent.TIMER, getPopularMods);
+				retryTimer.start();
 				
 				return;
 			}
-			var json = decode(data);
-			//trace(data);
+			
 			
 			this.modsProvider = new DataProvider();
 			this.lobbyModsProvider = new DataProvider();
@@ -1365,6 +1803,7 @@
 			this.gmiToLobbyProvider[-1] = new DataProvider();
 			this.gmiToLobbyProvider[-1].push({label:"<ANY MAP>", data:"*"});
 			this.gmiToName = new Object();
+			this.gmiToOptions = new Object();
 			
 			for (var i:int=0; i< json.length;i++){
 				var mod:Object = json[i];
@@ -1376,12 +1815,21 @@
 				this.gmiToModID[gameModeId] = gdsModId;
 				this.gmiToName[gameModeId] = mod.modName;
 				
+				if (mod.mod_options_enabled){
+					try{
+						this.gmiToOptions[gameModeId] = decode(mod.mod_options);
+					}
+					catch(err:Error){
+						traceLB("Unable to decode options: '" + mod.mod_options + "'");
+						traceLB(err.getStackTrace());
+					}
+				}
 				
 				this.gmiToProvider[gameModeId] = new DataProvider();
 				this.gmiToLobbyProvider[gameModeId] = new DataProvider();
 				this.gmiToLobbyProvider[gameModeId].push({label:"<ANY MAP>", data:"*"});
 				
-				//trace(mod.mod_maps);
+				//traceLB(mod.mod_maps);
 				var split:Array = mod.mod_maps.split(/,/);
 				for (var j:int = 0; j<split.length; j++){
 					var rxQuote:RegExp = /"([^"]+)"/ig
@@ -1401,24 +1849,24 @@
 		}
 		
 		/*public function getPopularModsCallback(statusCode:int, data:String) {
-			trace("###GetMods");
+			traceLB("###GetMods");
 			var json = decode(data);
-			//trace(data);
+			//traceLB(data);
 			
 			var rxId:RegExp = /id=(\d+)/ig;
 			this.modsProvider = new DataProvider();
 			
 			for (var i:int=0; i< json.length;i++){
 				var mod:Object = json[i];
-				//trace(mod.modName + " -- " + mod.workshopLink + " -- " + mod.modInfo);
-				//trace(Number(rxId.exec(mod.workshopLink)[1]));
+				//traceLB(mod.modName + " -- " + mod.workshopLink + " -- " + mod.modInfo);
+				//traceLB(Number(rxId.exec(mod.workshopLink)[1]));
 				var gameModeId:Number = Number(rxId.exec(mod.workshopLink)[1]);
 				
 				rxId = /id=(\d+)/ig;
-				//trace(rxId.exec(mod.modInfo)[1]);
+				//traceLB(rxId.exec(mod.modInfo)[1]);
 				var gdsModId:Number = Number(rxId.exec(mod.modInfo)[1]);
-				//trace(gameModeId + " -- " + gdsModId);
-				//trace('----');
+				//traceLB(gameModeId + " -- " + gdsModId);
+				//traceLB('----');
 				
 				this.modsProvider.push({label:mod.modName, data:gameModeId});
 			}
@@ -1436,17 +1884,18 @@
 		}
 
 		public function test6(event:MouseEvent) { //Lobby Status
-			trace("###STEAM_ID \""+Globals.instance.Loader_profile_mini.movieClip.ProfileMini_main.ProfileMini.Persona.steamIDNumber.text+"\"");
+			traceLB("###STEAM_ID \""+Globals.instance.Loader_profile_mini.movieClip.ProfileMini_main.ProfileMini.Persona.steamIDNumber.text+"\"");
 			socket.getDataAsync("d2mods/api/lobby_user_status.php?uid="+Globals.instance.Loader_profile_mini.movieClip.ProfileMini_main.ProfileMini.Persona.steamIDNumber.text, getLobbyStatus);
 		}
 		public function getLobbyStatus(statusCode:int, data:String) {
-			trace("###LOBBY STATUS");
+			traceLB("###LOBBY STATUS");
 			var json:Object = decode(data);
 			if (json.error) {
-				trace("There was an error: "+json.error);
+				traceLB("Not in a lobby");
+				//traceLB("Result: "+json.error);
 				return;
 			}
-			trace("We are in a lobby for "+json.workshop_id+" with to suit a lobby of "+json.lobby_max_players+ " players!");
+			traceLB("We are in a lobby for "+json.workshop_id+" with to suit a lobby of "+json.lobby_max_players+ " players!");
 			if (json.lobby_leader == Globals.instance.Loader_profile_mini.movieClip.ProfileMini_main.ProfileMini.Persona.steamIDNumber.text) {
 				target_gamemode = json.workshop_id;
 				target_password = json.lobby_pass;
@@ -1454,15 +1903,15 @@
 				test1(new MouseEvent(MouseEvent.CLICK));
 			} else {
 				if (json.lobby_hosted == 1) {
-					trace("JOINING LOBBY "+json.lobby_id);
+					traceLB("JOINING LOBBY "+json.lobby_id);
 					target_gamemode = json.workshop_id;
 					target_lobby = json.lobby_id;
 					test2(new MouseEvent(MouseEvent.CLICK), json.lobby_pass);
 				} else {
-					trace("Games not ready, why were we called?!");
+					traceLB("Games not ready, why were we called?!");
 				}
 			}
-			trace(data);
+			traceLB(data);
 		}
 		
 		// JSON decoder
@@ -1585,6 +2034,28 @@
 			return field;
 		}
 		
+		public function createTextField(size:uint = 18, color:uint = 0xFFFFFF, align:String = TextFormatAlign.LEFT) : TextField{
+			var tf:TextFormat = globals.Loader_chat.movieClip.chat_main.chat.ChatInputBox.textField.getTextFormat();
+			var field:TextField = new TextField();
+			field.height = size + 4;
+			field.width = 200;
+
+			tf.size = size;
+			tf.color = color;
+			tf.align = align;
+			//tf.font = "$TextFont*"; // Dunno what do on this
+			field.setTextFormat(tf);
+			field.defaultTextFormat = tf;
+			field.autoSize = "none";
+			field.maxChars = 0;
+			//field.type = TextFieldType.DYNAMIC;
+			
+			field.visible = true;
+			field.text = "";
+			
+			return field;
+		}
+		
 		public function replaceWithValveComponent(mc:MovieClip, type:String, keepDimensions:Boolean = false, addAt:int = -1) : MovieClip {
 			var parent = mc.parent;
 			var oldx = mc.x;
@@ -1611,7 +2082,7 @@
 		}
 		
 		public function onResize(re:ResizeManager) : * {
-			trace("Injected by Ash47!\n\n\n");
+			//traceLB("Injected by Ash47!\n\n\n");
 			var rm = Globals.instance.resizeManager;
 			var currentRatio:Number =  re.ScreenWidth / re.ScreenHeight;
 			var divided:Number;
@@ -1635,7 +2106,7 @@
 			correctedRatio =  re.ScreenHeight / originalHeight * divided;
 			this.screenHeight = re.ScreenHeight;
 			this.screenWidth = re.ScreenWidth;
-			trace("ratio: " + correctedRatio);
+			traceLB("ratio: " + correctedRatio);
 
 			this.scaleX = correctedRatio;
             this.scaleY = correctedRatio;
@@ -1652,7 +2123,18 @@
 			if (offset < 0)
 				offset = 0;
 			lobbyBrowserClip.y = (re.ScreenHeight - lobbyBrowserClip.height + offset) / 2;//re.ScreenHeight * .25;
+			
+			optionsPanelBg.scaleX = correctedRatio;
+			optionsPanelBg.scaleY = correctedRatio;
+			optionsPanelBg.x = (re.ScreenWidth / 2 - optionsPanelBg.width / 2);//re.ScreenWidth * .3;
+			offset = (this.optionsPanel.options.content.height - 333) * correctedRatio;
+			if (offset < 0)
+				offset = 0;
+			optionsPanelBg.y = (re.ScreenHeight - optionsPanelBg.height + offset) / 2;//re.ScreenHeight * .25;
 		
+			scalingTopBarPanel.scaleX = correctedRatio;
+			scalingTopBarPanel.scaleY = correctedRatio;
+			logPanel.x = re.ScreenWidth / 2 - logPanel.width * scalingTopBarPanel.scaleX / 2;
 		}
 		
 				//Stolen from Frota
@@ -1676,105 +2158,105 @@
         }
 
         public function PrintTable(t, indent=0, done=null) {
-        	var i:int, key, key1, v:*;
+            var i:int, key, key1, v:*;
 
-        	// Validate input
-        	if(isPrintable(t)) {
-        		trace("PrintTable called with incorrect arguments!");
-        		return;
-        	}
+            // Validate input
+            if(isPrintable(t)) {
+                trace("PrintTable called with incorrect arguments!");
+                return;
+            }
 
-        	if(indent == 0) {
-        		trace(t.name+" "+t+": {")
-        	}
+            if(indent == 0) {
+                trace(t.name+" "+t+": {")
+            }
 
-        	// Stop loops
-        	done ||= new flash.utils.Dictionary(true);
-        	if(done[t]) {
-        		trace(strRep("\t", indent)+"<loop object> "+t);
-        		return;
-        	}
-        	done[t] = true;
+            // Stop loops
+            done ||= new flash.utils.Dictionary(true);
+            if(done[t]) {
+                trace(strRep("\t", indent)+"<loop object> "+t);
+                return;
+            }
+            done[t] = true;
 
-        	// Grab this class
-        	var thisClass = flash.utils.getQualifiedClassName(t);
+            // Grab this class
+            var thisClass = flash.utils.getQualifiedClassName(t);
 
-        	// Print methods
-			for each(key1 in flash.utils.describeType(t)..method) {
-				// Check if this is part of our class
-				if(key1.@declaredBy == thisClass) {
-					// Yes, log it
-					trace(strRep("\t", indent+1)+key1.@name+"()");
-				}
-			}
+            // Print methods
+            for each(key1 in flash.utils.describeType(t)..method) {
+                // Check if this is part of our class
+                if(key1.@declaredBy == thisClass) {
+                    // Yes, log it
+                    trace(strRep("\t", indent+1)+key1.@name+"()");
+                }
+            }
 
-			// Check for text
-			if("text" in t) {
-				trace(strRep("\t", indent+1)+"text: "+t.text);
-			}
-			if("label" in t) {
-				trace(strRep("\t", indent+1)+"label: "+t.label);
-			}
+            // Check for text
+            if("text" in t) {
+                trace(strRep("\t", indent+1)+"text: "+t.text);
+            }
+            if("label" in t) {
+                trace(strRep("\t", indent+1)+"label: "+t.label);
+            }
 
-			// Print variables
-			for each(key1 in flash.utils.describeType(t)..variable) {
-				key = key1.@name;
-				v = t[key];
+            // Print variables
+            for each(key1 in flash.utils.describeType(t)..variable) {
+                key = key1.@name;
+                v = t[key];
 
-				// Check if we can print it in one line
-				if(isPrintable(v)) {
-					trace(strRep("\t", indent+1)+key+": "+v);
-				} else {
-					// Open bracket
-					trace(strRep("\t", indent+1)+key+": {");
+                // Check if we can print it in one line
+                if(isPrintable(v)) {
+                    trace(strRep("\t", indent+1)+key+": "+v);
+                } else {
+                    // Open bracket
+                    trace(strRep("\t", indent+1)+key+": {");
 
-					// Recurse!
-					PrintTable(v, indent+1, done)
+                    // Recurse!
+                    PrintTable(v, indent+1, done)
 
-					// Close bracket
-					trace(strRep("\t", indent+1)+"}");
-				}
-			}
+                    // Close bracket
+                    trace(strRep("\t", indent+1)+"}");
+                }
+            }
 
-			// Find other keys
-			for(key in t) {
-				v = t[key];
+            // Find other keys
+            for(key in t) {
+                v = t[key];
 
-				// Check if we can print it in one line
-				if(isPrintable(v)) {
-					trace(strRep("\t", indent+1)+key+": "+v);
-				} else {
-					// Open bracket
-					trace(strRep("\t", indent+1)+key+": {");
+                // Check if we can print it in one line
+                if(isPrintable(v)) {
+                    trace(strRep("\t", indent+1)+key+": "+v);
+                } else {
+                    // Open bracket
+                    trace(strRep("\t", indent+1)+key+": {");
 
-					// Recurse!
-					PrintTable(v, indent+1, done)
+                    // Recurse!
+                    PrintTable(v, indent+1, done)
 
-					// Close bracket
-					trace(strRep("\t", indent+1)+"}");
-				}
-        	}
+                    // Close bracket
+                    trace(strRep("\t", indent+1)+"}");
+                }
+            }
 
-        	// Get children
-        	if(t is MovieClip) {
-        		// Loop over children
-	        	for(i = 0; i < t.numChildren; i++) {
-	        		// Open bracket
-					trace(strRep("\t", indent+1)+t.name+" "+t+": {");
+            // Get children
+            if(t is MovieClip) {
+                // Loop over children
+                for(i = 0; i < t.numChildren; i++) {
+                    // Open bracket
+                    trace(strRep("\t", indent+1)+t.name+" "+t+": {");
 
-					// Recurse!
-	        		PrintTable(t.getChildAt(i), indent+1, done);
+                    // Recurse!
+                    PrintTable(t.getChildAt(i), indent+1, done);
 
-	        		// Close bracket
-					trace(strRep("\t", indent+1)+"}");
-	        	}
-        	}
+                    // Close bracket
+                    trace(strRep("\t", indent+1)+"}");
+                }
+            }
 
-        	// Close bracket
-        	if(indent == 0) {
-        		trace("}");
-        	}
+            // Close bracket
+            if(indent == 0) {
+                trace("}");
+            }
         }
-	}
+    }
 	
 }
