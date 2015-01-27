@@ -54,7 +54,7 @@
         public var globals:Object;
         public var elementName:String;
 		
-		private var version:String = "0.14";
+		private var version:String = "0.15";
 		private var DEBUG:Boolean = false;
 		private var versionChecked:Boolean = false;
 		
@@ -932,9 +932,12 @@
 				tween.stop();
 			}
 
-			
 			field.addEventListener(FocusEvent.FOCUS_IN, focusIn, false, 0, true);
 			field.addEventListener(FocusEvent.FOCUS_OUT, focusOut, false, 0, true);
+			
+			var ti:uint = (new Date().time) + 8000;
+			fields.push({timeout:ti, field:field});
+			
 			return field;
 		}
 		
@@ -1776,6 +1779,7 @@
 			
 			if (fail || statusCode != 200){
 				// Rerun? show failure
+				traceLB("FAILED: " + data);
 				if (retryCount == -1)
 					retryCount = 2;
 					
