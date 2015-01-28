@@ -54,7 +54,7 @@
         public var globals:Object;
         public var elementName:String;
 		
-		private var version:String = "0.15";
+		private var version:String = "0.16";
 		private var DEBUG:Boolean = false;
 		private var versionChecked:Boolean = false;
 		
@@ -548,9 +548,9 @@
 			var cleanUp:Function = function(e:TimerEvent){
 				for (var index:int=0; index < fields.length; index++){
 					var field = fields[index];
-					PrintTable(field);
+					//PrintTable(field);
 					var dt:uint = new Date().time;
-					trace(dt);
+					//trace(dt);
 					
 					if (field.field == null || field.field.parent == null){
 						delete fields[index];
@@ -573,7 +573,7 @@
 		}
 		
 		public function checkVersionCall(e:TimerEvent){
-			socket.getDataAsync("d2mods/api/lobby_version.txt", checkVersion);
+			socket.getDataAsync("d2mods/api/lobby_version.txt", checkVersion, D2HTTPSocket.totalZeroComplete);
 		}
 		
 		public function checkVersion(statusCode:int, data:String){
