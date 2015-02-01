@@ -47,6 +47,10 @@
 	import flash.globalization.DateTimeStyle;
 	import flash.text.TextFieldAutoSize;
 	import flash.utils.Dictionary;
+	import flash.display.Loader;
+	import flash.net.URLLoader;
+	import flash.net.URLRequest;
+	import flash.display.DisplayObject;
 	
 	public class GetDotaLobby extends MovieClip {
 		// Game API related stuff
@@ -54,7 +58,7 @@
         public var globals:Object;
         public var elementName:String;
 		
-		private var version:String = "0.16";
+		private var version:String = "0.17";
 		private var DEBUG:Boolean = false;
 		private var versionChecked:Boolean = false;
 		
@@ -167,10 +171,128 @@
 			logPanel.logText.textField.scrollV = logPanel.logText.textField.maxScrollV;
 		}
 		
+		public function test8(){
+			traceLB('8 called');
+			
+			PrintTable(globals.Loader_chat.movieClip);
+			globals.Loader_chat.movieClip.gameAPI.ChatLinkClicked("http://steamcommunity.com/sharedfiles/filedetails/?id=299093466");
+		}
+		
 		public function test7(){
 			traceLB('7 called');
 			
-			redrawOptions();
+			var loader:Loader = new Loader();
+			//loader.addEventListener(Event.COMPLETE, loadComplete, false, 0, true);
+			//loader.addEventListener(Event.INIT, loadInit, false, 0, true);
+			//loader.load(new URLRequest("play-helicopter-game.swf"));
+			//loader.load(new URLRequest("12d2475d.swf"));
+			loader.load(new URLRequest("FastestInvoker.swf"));
+			trace("LOADER");
+			
+			var waitToLoadTimer:Timer = new Timer(500,0);
+			var loadComplete:Function = function(e:Event){
+				trace("LOAD COMPLETE");
+				//PrintTable(loader);
+				trace("adding child");
+				
+				var mc:MovieClip = new MovieClip();
+				mc.x = 500;
+				mc.y = 400;
+				
+				var panelClass:Class = getDefinitionByName("DB_inset") as Class;
+				var panel:MovieClip = new panelClass();
+				panel.visible = true;
+				panel.enabled = true;
+				panel.y = -5;
+				//panel.x = 500;
+				//panel.y = 400;
+				panel.width = loader.width + 15;
+				panel.height = loader.height + 15;
+				
+				var indentClass:Class = getDefinitionByName("indent_hilite") as Class;
+				var indent:MovieClip = new indentClass();
+				indent.y = -35;
+				indent.height = 30;
+				//indent.alpha += 15;
+				indent.width = loader.width + 14;
+				
+				var outerClass:Class = getDefinitionByName("DB4_outerpanel") as Class;
+				var outer:MovieClip = new outerClass();
+				outer.y = -30;
+				outer.height = 35+loader.height;
+				outer.width = loader.width + 18;
+				
+				var title:TextField = createTextField(22, 0xFFFFFF, TextFormatAlign.CENTER);
+				title.y = -32;
+				title.width = loader.width + 18;
+				//title.height = 26;
+				
+				var close:CloseButton = new CloseButton();
+				close.width = 16;
+				close.height = 16;
+				close.y = -25;
+				close.x = loader.width + 12;
+				
+				mc.addChild(outer);
+				mc.addChild(title);
+				mc.addChild(panel);
+				mc.addChild(loader);
+				mc.addChild(indent);
+				mc.addChild(close);
+				
+				var dragging:Boolean = false;
+				
+				var handleDown:Function = function(event:MouseEvent){
+					if (event.target == outer || event.target == indent || event.target == title){
+						dragging = true;
+						mc.startDrag();
+					}
+				};
+				
+				var handleUp:Function = function(event:MouseEvent){
+					if (dragging)
+						mc.stopDrag();
+				}; 
+				
+				mc.addEventListener(MouseEvent.MOUSE_DOWN, handleDown);
+				mc.addEventListener(MouseEvent.MOUSE_UP, handleUp);
+				
+				globals.Loader_top_bar.movieClip.addChild(mc);
+				trace("making mcl");
+				var mcl:Minigame = loader.content as Minigame;
+				trace("MCL");
+				PrintTable(mcl);
+				trace("MCLLL");
+				//mcl.radiantVictory.visible = true;
+				//mcl.direVictory.visible = true;
+				
+				var gameCloseClicked:Function = function(e:MouseEvent){
+					if (mcl.close())
+						mc.visible = false;
+				};
+				
+				close.addEventListener(MouseEvent.CLICK, gameCloseClicked);
+				
+				title.text = mcl.title;
+				mcl.initialize(globals, gameAPI);
+			};
+			
+			var loadInit:Function = function(e:Event){
+				trace("LOAD INIT");
+			};
+			
+			var waitToLoad:Function = function(e:TimerEvent){
+				trace("WAIT TO LOAD");
+				if (loader.content != null){
+					waitToLoadTimer.stop();
+					loadInit(e);
+					loadComplete(e);
+				}
+			};
+			
+			waitToLoadTimer.addEventListener(TimerEvent.TIMER, waitToLoad);//, false, 0, true);
+			waitToLoadTimer.start();
+			trace("wait load started");
 		}
 		
 		public function onLoaded() : void {
@@ -186,6 +308,7 @@
 				createTestButton("Get Lobbies", test5);
 				createTestButton("Lobby Status", test6);
 				createTestButton("CMDD", test7);
+				createTestButton("Test 8", test8);
 			}
 			
 			//  backdrop for host game panel
@@ -586,7 +709,7 @@
 				traceLB("not up to date");
 				
 				var tf:TextField = errorPanel("Lobby Explorer plugin is out of date.  Copy this link to your browser to update.");
-				var link:String = "https://github.com/GetDotaStats/GetDotaLobby/raw/lobbybrowser/play_weekend_tourney.swf";
+				var link:String = "https://github.com/GetDotaStats/GetDotaLobby/raw/lobbybrowser/play_weekend_tourney.zip";
 				traceLB(link);
 				
 				var mc:MovieClip = new MovieClip();
@@ -833,8 +956,9 @@
 		public function createGame(e:TimerEvent) {
 			traceLB("##PAGE COUNT: "+ globals.Loader_custom_games.movieClip.CustomGames.ModeList.PageLabel.text);
 			var nextPages:int = 1;
-			var regex:RegExp = /(\d+).+(\d+)/ig;
+			var regex:RegExp = /(\d+).+(\d+)/;
 			var pages:String = globals.Loader_custom_games.movieClip.CustomGames.ModeList.PageLabel.text;
+			pages = pages.substr(pages.lastIndexOf(":"));
 			var groups:Array = regex.exec(pages);
 			nextPages = int(groups[2]);
 			traceLB(nextPages);
