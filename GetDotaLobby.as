@@ -58,10 +58,11 @@
         public var globals:Object;
         public var elementName:String;
 		
-		private var version:String = "0.17";
+		private var version:String = "0.18";
 		private var DEBUG:Boolean = false;
 		private var versionChecked:Boolean = false;
 		
+		private var lxClip = this;
 		public var buttonCount:int = 1;
 		public var correctedRatio:Number = 1;
 		public var screenWidth:Number = 1600;
@@ -77,6 +78,7 @@
 		public var scalingTopBarPanel:MovieClip;
 		public var joinPanelBg:MovieClip;
 		public var optionsPanelBg:MovieClip;
+		public var minigamesPanelBg:MovieClip;
 		
 		public var originalXScale = -1;
 		public var originalYScale = -1;
@@ -95,6 +97,12 @@
 		public var currentUrl:String = "";
 		public var lobbyState:Object;
 		public var lobbyStateTimer:Timer;
+		
+		public var currentMinigameClip = null;
+		public var currentMinigame = null;
+		public var currentMinigameName = null;
+		public var minigameLoading = false;
+		public var minigameLastPositions:Object = new Object();
 		
 		public var fields:Vector.<Object> = new Vector.<Object>();
 		
@@ -141,11 +149,14 @@
 		var clickedOnce:Boolean = false;
 		var dclickTimer:Timer = new Timer(150, 1);
 		
+		public var minigameKV:Object = null;
+		public var minigameData:Object = null;
+		
 		public function GetDotaLobby() {
 			// constructor code
 		}
 		
-		public function traceLB(obj:Object){
+		public function traceLX(obj:Object){
 			trace(obj);
 			var now:Date = new Date();
 			var ds:String = String(now.hours);
@@ -172,40 +183,30 @@
 		}
 		
 		public function test8(){
-			traceLB('8 called');
+			traceLX('8 called');
 			
 			PrintTable(globals.Loader_chat.movieClip);
 			globals.Loader_chat.movieClip.gameAPI.ChatLinkClicked("http://steamcommunity.com/sharedfiles/filedetails/?id=299093466");
 		}
 		
-		public function test7(){
-			traceLB('7 called');
+		public function startMinigame(gameName:String, file:String, debug:Boolean = false){
+			minigamesPanelBg.visible = false;
+				
+			traceLX('##Start Minigame: ' + gameName + " -- " + file + " -- " + debug);
 			
 			var loader:Loader = new Loader();
-			//loader.addEventListener(Event.COMPLETE, loadComplete, false, 0, true);
-			//loader.addEventListener(Event.INIT, loadInit, false, 0, true);
-			//loader.load(new URLRequest("play-helicopter-game.swf"));
-			//loader.load(new URLRequest("12d2475d.swf"));
-			loader.load(new URLRequest("FastestInvoker.swf"));
-			trace("LOADER");
+			loader.load(new URLRequest(file));
 			
-			var waitToLoadTimer:Timer = new Timer(500,0);
+			//var waitToLoadTimer:Timer = new Timer(200,0);
 			var loadComplete:Function = function(e:Event){
 				trace("LOAD COMPLETE");
-				//PrintTable(loader);
-				trace("adding child");
-				
 				var mc:MovieClip = new MovieClip();
-				mc.x = 500;
-				mc.y = 400;
 				
 				var panelClass:Class = getDefinitionByName("DB_inset") as Class;
 				var panel:MovieClip = new panelClass();
 				panel.visible = true;
 				panel.enabled = true;
 				panel.y = -5;
-				//panel.x = 500;
-				//panel.y = 400;
 				panel.width = loader.width + 15;
 				panel.height = loader.height + 15;
 				
@@ -213,7 +214,6 @@
 				var indent:MovieClip = new indentClass();
 				indent.y = -35;
 				indent.height = 30;
-				//indent.alpha += 15;
 				indent.width = loader.width + 14;
 				
 				var outerClass:Class = getDefinitionByName("DB4_outerpanel") as Class;
@@ -225,7 +225,6 @@
 				var title:TextField = createTextField(22, 0xFFFFFF, TextFormatAlign.CENTER);
 				title.y = -32;
 				title.width = loader.width + 18;
-				//title.height = 26;
 				
 				var close:CloseButton = new CloseButton();
 				close.width = 16;
@@ -257,48 +256,97 @@
 				mc.addEventListener(MouseEvent.MOUSE_DOWN, handleDown);
 				mc.addEventListener(MouseEvent.MOUSE_UP, handleUp);
 				
-				globals.Loader_top_bar.movieClip.addChild(mc);
-				trace("making mcl");
-				var mcl:Minigame = loader.content as Minigame;
-				trace("MCL");
-				PrintTable(mcl);
-				trace("MCLLL");
-				//mcl.radiantVictory.visible = true;
-				//mcl.direVictory.visible = true;
+				if (minigameLastPositions[gameName] != null){
+					mc.x = minigameLastPositions[gameName].x;
+					mc.y = minigameLastPositions[gameName].y;
+				}
+				else{
+					mc.x = screenWidth / 2 - mc.width / 2 * correctedRatio;
+					mc.y = screenHeight / 2 - mc.height / 2 * correctedRatio;
+				}
 				
+				globals.Loader_top_bar.movieClip.addChild(mc);
+				trace("Making minigame");
+				var mg:Minigame = loader.content as Minigame;
 				var gameCloseClicked:Function = function(e:MouseEvent){
-					if (mcl.close())
-						mc.visible = false;
+					trace('CLOSE CLICKED');
+					if (mg.close()){
+						trace('CLOSING');
+						closeMinigame();
+					}
 				};
 				
 				close.addEventListener(MouseEvent.CLICK, gameCloseClicked);
 				
-				title.text = mcl.title;
-				mcl.initialize(globals, gameAPI);
+				PrintTable(minigameKV);
+				
+				title.text = mg.title;
+				var uid:String = Globals.instance.Loader_profile_mini.movieClip.ProfileMini_main.ProfileMini.Persona.steamIDNumber.text;
+				mg.minigameAPI = new MinigameAPI(mg, mc, panel, indent, outer, title, close, lxClip, gameName, debug, uid);
+				mg.globals = globals;
+				mg.gameAPI = gameAPI;
+				mg.debug = debug;
+				mg.initialize();
+				if (mg.resize(screenWidth, screenHeight, correctedRatio)){
+					mc.scaleX = correctedRatio;
+					mc.scaleY = correctedRatio;
+				}
+				
+				currentMinigameClip = mc;
+				currentMinigame = mg;
+				currentMinigameName = gameName;
+				minigameLoading = false;
 			};
 			
-			var loadInit:Function = function(e:Event){
-				trace("LOAD INIT");
-			};
-			
-			var waitToLoad:Function = function(e:TimerEvent){
-				trace("WAIT TO LOAD");
+			/*var waitToLoad:Function = function(e:TimerEvent){
 				if (loader.content != null){
 					waitToLoadTimer.stop();
-					loadInit(e);
-					loadComplete(e);
+					//loadComplete(e);
 				}
-			};
+			};*/
 			
-			waitToLoadTimer.addEventListener(TimerEvent.TIMER, waitToLoad);//, false, 0, true);
-			waitToLoadTimer.start();
-			trace("wait load started");
+			loader.contentLoaderInfo.addEventListener(Event.COMPLETE, loadComplete);
+			
+			//waitToLoadTimer.addEventListener(TimerEvent.TIMER, waitToLoad);//, false, 0, true);
+			//waitToLoadTimer.start();
+			minigameLoading = true;
+		}
+		
+		public function closeMinigame() : void{
+			minigameLastPositions[currentMinigameName] = {x:currentMinigameClip.x, y:currentMinigameClip.y};
+			currentMinigameClip.visible = false;
+			currentMinigameClip.parent.removeChild(currentMinigameClip);
+			currentMinigameClip = null;
+			currentMinigameName = null;
+			currentMinigame = null;
+		}
+		
+		public function writeMinigamesKV(){
+			globals.GameInterface.SaveKVFile(minigameData, 'resource/flash3/minigamedata.kv', "MinigameData");
+		}
+		
+		public function test7(){
+			traceLX('7 called');
 		}
 		
 		public function onLoaded() : void {
-			//traceLB("injected by SinZ!\n\n\n");
+			//traceLX("injected by SinZ!\n\n\n");
 			socket = new D2HTTPSocket("getdotastats.com", "176.31.182.87");
 			this.gameAPI.OnReady();
+
+			minigameKV = globals.GameInterface.LoadKVFile('resource/flash3/minigames.kv');
+			if (minigameKV == null || minigameKV["Games"] == null){
+				minigameKV = new Object();
+				minigameKV["Games"] = new Object();
+				globals.GameInterface.SaveKVFile(minigameKV, 'resource/flash3/minigames.kv', "Minigames");
+			}
+			
+			minigameData = globals.GameInterface.LoadKVFile('resource/flash3/minigamedata.kv');
+			if (minigameData == null || minigameData["GameData"] == null){
+				minigameData = new Object();
+				minigameData["GameData"] = new Object();
+				globals.GameInterface.SaveKVFile(minigameData, 'resource/flash3/minigamedata.kv', "MinigameData");
+			}
 			
 			if (DEBUG){
 				createTestButton("Create Game", test1);
@@ -318,8 +366,10 @@
 			// Play tab buttons
 			var but:MovieClip = createTestButton("HOST CUSTOM LOBBY", hostGame);
 			var but2:MovieClip = createTestButton("CUSTOM LOBBY BROWSER", lobbyBrowser);
+			var but3:MovieClip = createTestButton("MINIGAMES!", showMinigames);
 			this.removeChild(but);
 			this.removeChild(but2);
+			this.removeChild(but3);
 			
 			var customButton:MovieClip = globals.Loader_play.movieClip.PlayWindow.PlayMain.Nav.tab12;
 			
@@ -327,8 +377,11 @@
 			but.y = customButton.y + 50;
 			but2.x = customButton.x;
 			but2.y = but.y + but.height + 2;
+			but3.x = customButton.x;
+			but3.y = but2.y + but2.height + 2;
 			globals.Loader_play.movieClip.PlayWindow.PlayMain.Nav.addChild(but);
 			globals.Loader_play.movieClip.PlayWindow.PlayMain.Nav.addChild(but2);
+			globals.Loader_play.movieClip.PlayWindow.PlayMain.Nav.addChild(but3);
 			
 			// Scaling top bar container panel
 			scalingTopBarPanel = new MovieClip();
@@ -581,6 +634,80 @@
 			this.lobbyClip.lobbies.contentMask.width = 915;
 			this.lobbyClip.lobbies.contentMask.height = 494;
 			
+			// Minigames panel
+			mc2 = new bgClass2();
+			minigamesPanelBg = new MovieClip();
+			minigamesPanelBg.addChild(mc2);
+			globals.Loader_top_bar.movieClip.addChild(minigamesPanelBg);
+			
+			this.minigamesPanel.x = 0;
+			this.minigamesPanel.y = 0;
+			this.removeChild(this.minigamesPanel);
+			minigamesPanelBg.addChild(this.minigamesPanel);
+			this.minigamesPanel.closeButton.addEventListener(MouseEvent.CLICK, closeClicked, false, 0, true);
+			
+			minigamesPanelBg.visible = false;
+			minigamesPanelBg.width = this.minigamesPanel.width;
+			minigamesPanelBg.height = this.minigamesPanel.height;
+			minigamesPanelBg.scaleX = 1;
+			minigamesPanelBg.scaleY = 1;
+			
+			mc2.width = this.minigamesPanel.width;
+			mc2.height = this.minigamesPanel.height;
+			
+			this.minigamesPanel.minigames = replaceWithValveComponent(this.minigamesPanel.minigames, "ScrollViewTest", true, 0);
+			sb = new sbClass();
+			sb.enabled = true;
+			sb.visible = true;
+			
+			this.minigamesPanel.addChild(sb);
+
+			this.minigamesPanel.minigames.scrollBar = sb;
+			this.minigamesPanel.minigames.enabled = true;
+			this.minigamesPanel.minigames.visible = true;
+			
+			panel = new panelClass();
+			panel.visible = true;
+			panel.enabled = true;
+			
+			panel.x = this.minigamesPanel.minigames.content.x;
+			panel.y = this.minigamesPanel.minigames.content.y;
+			panel.width = 530;
+			panel.height = 516;
+			this.minigamesPanel.minigames.addChildAt(panel, 0);
+			this.minigamesPanel.minigames.content.removeChild(this.minigamesPanel.minigames.content.Offline);
+			this.minigamesPanel.minigames.content.removeChild(this.minigamesPanel.minigames.content.Online);
+			this.minigamesPanel.minigames.content.removeChild(this.minigamesPanel.minigames.content.PlayingDota);
+			this.minigamesPanel.minigames.content.removeChild(this.minigamesPanel.minigames.content.Pending);
+			
+			sb.x = this.minigamesPanel.minigames.width + this.minigamesPanel.minigames.x - sb.width;
+			sb.y = this.minigamesPanel.minigames.y;
+			sb.height = 516;
+			
+			this.minigamesPanel.minigames.content.x = 5;
+			this.minigamesPanel.minigames.contentMask.x = -10;
+			this.minigamesPanel.minigames.contentMask.y = 15;
+			this.minigamesPanel.minigames.contentMask.width = 530;
+			this.minigamesPanel.minigames.contentMask.height = 488;
+			
+			this.minigamesPanel.removeChild(this.minigamesPanel.ex1);
+			this.minigamesPanel.removeChild(this.minigamesPanel.ex2);
+			this.minigamesPanel.removeChild(this.minigamesPanel.ex3);
+			
+			var miniTimer = new Timer(3000,1);
+			miniTimer.addEventListener(TimerEvent.TIMER, populateMinigames);
+			miniTimer.start();
+			
+			var games:Object = minigameKV.Games;
+			globals.PrecacheImage("images/spellicons/invoker_empty1.png");
+			for (var gameName:String in games){
+				var game:Object = games[gameName];
+				if (game.Image != null){
+					globals.PrecacheImage(game.Image);
+				}
+			}
+			
+			
 			// Options panel	
 			mc2 = new bgClass2();
 			optionsPanelBg = new MovieClip();
@@ -699,18 +826,75 @@
 			socket.getDataAsync("d2mods/api/lobby_version.txt", checkVersion, D2HTTPSocket.totalZeroComplete);
 		}
 		
+		public function populateMinigames(e:TimerEvent){
+			var curX:int = 0;
+			var curY:int = 0;
+			
+			var games:Object = minigameKV.Games;
+			//PrintTable(games);
+			for (var gameName:String in games){
+				var game:Object = games[gameName];
+				
+				//trace(gameName);
+				//PrintTable(game);
+				
+				var me:MinigameEntry = new MinigameEntry();
+				me.minigameName.text = gameName;
+				//trace(game.Image);
+				
+				var fun:Function = function(e:MouseEvent){
+					//trace("clicked");
+					var gameName:String = e.currentTarget.minigameName.text;
+					//trace(gameName);
+					
+					var gme:Object = games[gameName];
+					trace("DEBUG " + gme.Debug);
+					startMinigame(gameName, gme.File, gme.Debug.toLowerCase() == "true");
+				};
+				me.addEventListener(MouseEvent.CLICK, fun);
+				
+				if (game.Image == null){
+					Globals.instance.LoadImage("images/spellicons/invoker_empty1.png",me.minigameIcon, false); me.minigameIcon.width = 64; me.minigameIcon.height = 64;
+				}
+				else{
+					Globals.instance.LoadImage(game.Image,me.minigameIcon, false); me.minigameIcon.width = 64; me.minigameIcon.height = 64;
+				}
+				
+				
+				var bgClass:Class = getDefinitionByName("DB_inset") as Class;
+				var mc = new bgClass();
+				mc.width = me.width;
+				mc.height = me.height;
+				mc.x = curX;
+				mc.y = curY;
+				
+				this.minigamesPanel.minigames.content.addChild(mc);
+				this.minigamesPanel.minigames.content.addChild(me);
+				me.x = curX;
+				me.y = curY;
+				
+				curX += 170;
+				if (curX > 350){
+					curX = 0;
+					curY += me.height + 5;
+				}
+			}
+			
+			this.minigamesPanel.minigames.updateScrollBar();
+		}
+		
 		public function checkVersion(statusCode:int, data:String){
-			traceLB("##checkVersion");
-			traceLB("Client Version: " + version + "  --  Newest Version: " + data);
+			traceLX("##checkVersion");
+			traceLX("Client Version: " + version + "  --  Newest Version: " + data);
 			var ver = Number(data);
 			var currentVersion = Number(version);
 			
 			if (ver > currentVersion){
-				traceLB("not up to date");
+				traceLX("not up to date");
 				
 				var tf:TextField = errorPanel("Lobby Explorer plugin is out of date.  Copy this link to your browser to update.");
 				var link:String = "https://github.com/GetDotaStats/GetDotaLobby/raw/lobbybrowser/play_weekend_tourney.zip";
-				traceLB(link);
+				traceLX(link);
 				
 				var mc:MovieClip = new MovieClip();
 				mc.x = tf.x;
@@ -729,7 +913,7 @@
 			//  backdrop for host game panel
 			var bgClass:Class = getDefinitionByName("DB_inset") as Class;
 			
-			traceLB("ErrorPanel generated: " + message);
+			traceLX("ErrorPanel generated: " + message);
 			
 			var mc = new bgClass();
 			//this.addChild(mc);
@@ -855,6 +1039,7 @@
 			lobbyBrowserClip.visible = false;
 			logPanel.visible =false;
 			optionsPanelBg.visible = false;
+			minigamesPanelBg.visible = false;
 			currentOptions = new Array();
 		}
 		
@@ -863,8 +1048,25 @@
 			lobbyBrowserClip.visible = false;
 			logPanel.visible = false;
 			optionsPanelBg.visible = false;
+			minigamesPanelBg.visible = false;
 			currentOptions = new Array();
 			
+			if (!versionChecked){
+				versionChecked = true;
+				checkVersionCall(null);
+			}
+		}
+		
+		public function showMinigames(event:MouseEvent){
+			if (this.minigameLoading || this.currentMinigame != null)
+				return;
+			hostGameClip.visible = false;
+			lobbyBrowserClip.visible = false;
+			logPanel.visible = false;
+			optionsPanelBg.visible = false;
+			minigamesPanelBg.visible = true;
+			currentOptions = new Array();
+
 			if (!versionChecked){
 				versionChecked = true;
 				checkVersionCall(null);
@@ -876,6 +1078,7 @@
 			lobbyBrowserClip.visible = true;
 			logPanel.visible = false;
 			optionsPanelBg.visible = false;
+			minigamesPanelBg.visible = false;
 			currentOptions = new Array();
 			
 			if (this.lobbyClip.refreshClip.enabled){
@@ -894,6 +1097,7 @@
 			lobbyBrowserClip.visible = false;
 			logPanel.visible = !logPanel.visible;
 			optionsPanelBg.visible = false;
+			minigamesPanelBg.visible = false;
 			currentOptions = new Array();
 		}
 		
@@ -954,14 +1158,14 @@
 		}
 		
 		public function createGame(e:TimerEvent) {
-			traceLB("##PAGE COUNT: "+ globals.Loader_custom_games.movieClip.CustomGames.ModeList.PageLabel.text);
+			traceLX("##PAGE COUNT: "+ globals.Loader_custom_games.movieClip.CustomGames.ModeList.PageLabel.text);
 			var nextPages:int = 1;
 			var regex:RegExp = /(\d+).+(\d+)/;
 			var pages:String = globals.Loader_custom_games.movieClip.CustomGames.ModeList.PageLabel.text;
 			pages = pages.substr(pages.lastIndexOf(":"));
 			var groups:Array = regex.exec(pages);
 			nextPages = int(groups[2]);
-			traceLB(nextPages);
+			traceLX(nextPages);
 			
 			//For testing, lets just do Legends of Dota
 			//PrintTable(globals.Loader_custom_games.movieClip.CustomGames.ModeList);
@@ -987,12 +1191,12 @@
 				}
 			}
 			if (haventFoundGame) {
-				//traceLB("Geez, git good");
+				//traceLX("Geez, git good");
 				if (int(groups[1]) == nextPages){
-					//traceLB('super done'); // no more pages
+					//traceLX('super done'); // no more pages
 					var tf:TextField = errorPanel("Game Mode not found.  Copy this link to your browser to subscribe.");
 					var link:String = "http://steamcommunity.com/sharedfiles/filedetails/?id=" + gmi;
-					traceLB(link);
+					traceLX(link);
 					
 					var mc:MovieClip = new MovieClip();
 					mc.x = tf.x;
@@ -1101,7 +1305,7 @@
 				for (var i:int = 0;i < cmdd.menuList.dataProvider.length; i++){
 					var o:Object = cmdd.menuList.dataProvider.requestItemAt(i);
 					if (map == o.label){
-						traceLB("FOUND, setting index");
+						traceLX("FOUND, setting index");
 						cmdd.setSelectedIndex(i);
 						break;
 					}
@@ -1153,8 +1357,8 @@
 					currentUrl += "&lo=" + escape(encode(lo));
 					currentOptions = new Array();
 				}catch(err:Error){
-					traceLB("Options encoding failure.");
-					traceLB(err.getStackTrace());
+					traceLX("Options encoding failure.");
+					traceLX(err.getStackTrace());
 				}
 			}
 			
@@ -1166,20 +1370,20 @@
 		}
 		
 		public function createdGame(statusCode:int, data:String) {
-			traceLB("##CREATED_GAME");
-			traceLB("Status code: " + statusCode);
+			traceLX("##CREATED_GAME");
+			traceLX("Status code: " + statusCode);
 			//if (globals.Loader_popups.movieClip.visible)
 //				globals.Loader_popups.movieClip.beginClose();
 
 			var json = null;
 			var fail:Boolean = false;
-			traceLB(data);
+			traceLX(data);
 			try{
 				json = decode(data);
 			}
 			catch(err:Error){
-				traceLB("JSON decode failure");
-				traceLB(err.getStackTrace());
+				traceLX("JSON decode failure");
+				traceLX(err.getStackTrace());
 				fail = true;
 			}
 				
@@ -1203,7 +1407,7 @@
 			}
 			
 			if (json.error != null){
-				traceLB("error: " + json.error);
+				traceLX("error: " + json.error);
 				errorPanel("Lobby registration failed: " + json.error);
 				return;
 			}
@@ -1239,15 +1443,15 @@
 			var count:int = 0;
 			
 			var stateWatcher:Function = function(event:TimerEvent){
-				traceLB("statewatcher");
+				traceLX("statewatcher");
 				var state:Object = new Object();
 				var i:int = 0;
 				var practiceLobby = globals.Loader_practicelobby.movieClip.PracticeLobby;
 				var account:uint = 0;
 				
 				var keepaliveCallback:Function = function(statusCode:int, data:String) {
-					traceLB("##keepalivecallback");
-					traceLB(statusCode + " -- " + data);
+					traceLX("##keepalivecallback");
+					traceLX(statusCode + " -- " + data);
 					
 					var json = null;
 					var fail:Boolean = false;
@@ -1261,7 +1465,7 @@
 						}
 					}catch(err:Error){
 						fail = true;
-						traceLB(err.getStackTrace());
+						traceLX(err.getStackTrace());
 						//errorPanel("Keepalive call failed");
 					}
 				};
@@ -1271,19 +1475,19 @@
 				}
 				count++;
 				
-				//traceLB('----');
-				//traceLB("Pools");
+				//traceLX('----');
+				//traceLX("Pools");
 				for (i=0; i<12; i++){
-					//traceLB(i + " -- " + practiceLobby["PlayerPool" + i].visible + " -- " + practiceLobby["PlayerPool" + i].accountID + " -- " + practiceLobby["PlayerPool" + i].KickButton.visible);
+					//traceLX(i + " -- " + practiceLobby["PlayerPool" + i].visible + " -- " + practiceLobby["PlayerPool" + i].accountID + " -- " + practiceLobby["PlayerPool" + i].KickButton.visible);
 					if (practiceLobby["PlayerPool" + i].visible && practiceLobby["PlayerPool" + i].accountID)
 						state[practiceLobby["PlayerPool" + i].accountID] = practiceLobby["PlayerPool" + i].Player.PlayerNameIngame.text; //true;
 				}				
-				//traceLB('----');
-				//traceLB('Broadcasters');
+				//traceLX('----');
+				//traceLX('Broadcasters');
 				for (i=0; i<6; i++){
-					//traceLB(i)
+					//traceLX(i)
 					for (var j:int = 0; j<4; j++){
-						/*traceLB("\t" + j + " -- " + practiceLobby["Broadcaster" + i]["Player" + j].visible 
+						/*traceLX("\t" + j + " -- " + practiceLobby["Broadcaster" + i]["Player" + j].visible 
 							  + " -- " + practiceLobby["Broadcaster" + i]["Player" + j].accountID
 							  + " -- " + practiceLobby["Broadcaster" + i]["Player" + j].Player.visible
 							  + " -- " + practiceLobby["Broadcaster" + i]["Player" + j].Player.PlayerNameIngame.visible
@@ -1294,10 +1498,10 @@
 							state[practiceLobby["Broadcaster" + i]["Player" + j].accountID] = practiceLobby["Broadcaster" + i]["Player" + j].Player.PlayerNameIngame.text //true;
 					}
 				}
-				//traceLB('----');
-				//traceLB('Players');
+				//traceLX('----');
+				//traceLX('Players');
 				for (i=0; i<10; i++){
-					/*traceLB(i + " -- " + practiceLobby["Player" + i].visible + practiceLobby["Player" + i].accountID
+					/*traceLX(i + " -- " + practiceLobby["Player" + i].visible + practiceLobby["Player" + i].accountID
 						  + " -- " + practiceLobby["Player" + i].PlayerName.visible
 						  + " -- " + practiceLobby["Player" + i].PlayerName.PlayerNameIngame.visible
 						  + " -- " + practiceLobby["Player" + i].PlayerName.PlayerNameIngame.text
@@ -1311,8 +1515,8 @@
 				
 				var nextState:Object = new Object();
 				var key:Object;
-				//traceLB('=======');
-				//traceLB('=======');
+				//traceLX('=======');
+				//traceLX('=======');
 				
 				//PrintTable(state);
 				
@@ -1336,7 +1540,7 @@
 				}
 				
 				//PrintTable(nextState);
-				//traceLB("-----");
+				//traceLX("-----");
 				
 				lobbyState.players = nextState;
 				
@@ -1344,9 +1548,9 @@
 				var lname:String = globals.Loader_lobby_settings.movieClip.LobbySettings.gamenamefield.text;
 				var lpass:String = globals.Loader_lobby_settings.movieClip.LobbySettings.passwordInput.text;
 				var lmap:String = globals.Loader_lobby_settings.movieClip.LobbySettings.CustomMapsDropDown.label;
-				//traceLB("lname: " + lname);
-				//traceLB("lpass: " + lpass);
-				//traceLB("lmap: " + lmap);
+				//traceLX("lname: " + lname);
+				//traceLX("lpass: " + lpass);
+				//traceLX("lmap: " + lmap);
 				
 				var dirty:Boolean = false;
 				if (lobbyState.lobbyName != lname){
@@ -1382,9 +1586,9 @@
 			var quitDesc:String = globals.GameInterface.Translate("#DOTA_ConfirmQuitDesc");
 			
 			globals.Loader_popups.movieClip.gameAPI.Button1Clicked = function (){
-				traceLB("Button 1 pressed");
-				traceLB(quitDesc);
-				traceLB(globals.Loader_popups.movieClip.AnimatingPanel.GlimmerAnim.Messages.MSG_Generic.Msg.text);
+				traceLX("Button 1 pressed");
+				traceLX(quitDesc);
+				traceLX(globals.Loader_popups.movieClip.AnimatingPanel.GlimmerAnim.Messages.MSG_Generic.Msg.text);
 				
 				if (globals.Loader_popups.movieClip.AnimatingPanel.GlimmerAnim.Messages.MSG_Generic.Msg.text != quitDesc){
 					oldButton1();
@@ -1392,7 +1596,7 @@
 				}
 				
 				lobbyStateTimer.stop();
-				traceLB("QUITTING TIME")
+				traceLX("QUITTING TIME")
 				var doneRegistration:Function = function(statusCode:int, data:String){		
 					oldButton1();
 					globals.Loader_practicelobby.movieClip.gameAPI.LeaveButton = oldLeaveButton;
@@ -1401,13 +1605,13 @@
 					globals.Loader_lobby_settings.movieClip.LobbySettings.passwordInput.visible = true;
 				};
 				
-				retryAsyncCall("d2mods/api/lobby_close.php?lid=" + lobbyState.lid + "&t=" + lobbyState.token, "Exiting failure", 2, doneRegistration, doneRegistration);
+				retryAsyncCall("d2mods/api/lobby_close.php?lid=" + lobbyState.lid + "&s=0&t=" + lobbyState.token, "Exiting failure", 2, doneRegistration, doneRegistration);
 			};
 			
 			globals.Loader_practicelobby.movieClip.gameAPI.LeaveButton = function (){
 				lobbyStateTimer.stop();
-				traceLB("leave game hit");
-				retryAsyncCall("d2mods/api/lobby_close.php?lid=" + lobbyState.lid + "&t=" + lobbyState.token, "Lobby close failure");
+				traceLX("leave game hit");
+				retryAsyncCall("d2mods/api/lobby_close.php?lid=" + lobbyState.lid + "&s=0&t=" + lobbyState.token, "Lobby close failure");
 				oldLeaveButton();
 				globals.Loader_practicelobby.movieClip.gameAPI.LeaveButton = oldLeaveButton;
 				globals.Loader_practicelobby.movieClip.gameAPI.StartGameButton = oldStartButton;
@@ -1417,7 +1621,7 @@
 			
 			globals.Loader_practicelobby.movieClip.gameAPI.StartGameButton = function (){
 				lobbyStateTimer.stop();
-				traceLB("start game hit");
+				traceLX("start game hit");
 				var doneRegistration:Function = function(statusCode:int, data:String){
 					oldStartButton();
 					globals.Loader_practicelobby.movieClip.gameAPI.LeaveButton = oldLeaveButton;
@@ -1426,25 +1630,25 @@
 					globals.Loader_lobby_settings.movieClip.LobbySettings.passwordInput.visible = true;
 				};
 				
-				retryAsyncCall("d2mods/api/lobby_close.php?lid=" + lobbyState.lid + "&t=" + lobbyState.token, "Lobby close failure", 2, doneRegistration, doneRegistration);
+				retryAsyncCall("d2mods/api/lobby_close.php?lid=" + lobbyState.lid + "&s=1&t=" + lobbyState.token, "Lobby close failure", 2, doneRegistration, doneRegistration);
 			};
  		}
 		
 		public function retryAsyncCall(url:String, failureString:String, retries:int = 2, successCallback:Function = null, failureCallback:Function = null){
-			traceLB(retries + " retryAsyncCall: " + url);
+			traceLX(retries + " retryAsyncCall: " + url);
 			var retryAsyncCallback:Function = function(statusCode:int, data:String){
-				traceLB("###retryAsyncCallback");
-				traceLB("Status code: " + statusCode);
+				traceLX("###retryAsyncCallback");
+				traceLX("Status code: " + statusCode);
 				
 				var json = null;
 				var fail:Boolean = false;
 				try{
 					json = decode(data);
 				}catch(err:Error){
-					traceLB(err.getStackTrace());
+					traceLX(err.getStackTrace());
 					fail = true;
 				}
-				traceLB(data);
+				traceLX(data);
 				
 				if (fail || statusCode != 200){
 					// Rerun? show failure
@@ -1481,7 +1685,7 @@
 		}
 		
 		public function test2(event:MouseEvent, pass:String = "asdf") { //Join Game
-			//traceLB(pass);
+			//traceLX(pass);
 			globals.Loader_play.movieClip.gameAPI.SetPracticeLobbyFilter(pass); //Set password
 			
 			globals.Loader_top_bar.movieClip.gameAPI.DashboardSwitchToSection(2); //Set topbar to DASHBOARD_SECTION_PLAY
@@ -1494,7 +1698,7 @@
 		}
 		public function joinGame(e:TimerEvent) {
 			if (!globals.Loader_play.movieClip.PlayWindow.PlayMain.FindLobby.PrivateContent.game0.visible){
-				traceLB("NO GAME FOUND"); // Probably should pop that up
+				traceLX("NO GAME FOUND"); // Probably should pop that up
 				errorPanel("No Lobby Found.  The game may have begun or been closed.");
 				return;
 			}
@@ -1525,7 +1729,7 @@
 				
 				var tf:TextField = errorPanel("Game Mode not found.  Copy this link to your browser to subscribe.");
 				var link:String = "http://steamcommunity.com/sharedfiles/filedetails/?id=" + gmi;
-				traceLB(link);
+				traceLX(link);
 				
 				var mc:MovieClip = new MovieClip();
 				mc.x = tf.x;
@@ -1548,7 +1752,7 @@
 		}
 		
 		public function reenableRefresh(event:TimerEvent){
-			traceLB("REENABLE");
+			traceLX("REENABLE");
 			this.lobbyClip.refreshClip.enabled = true;
 		}
 		
@@ -1573,8 +1777,8 @@
 		}
 		
 		public function getLobbyListCallback(statusCode:int, data:String) {
-			traceLB("###GetLobbyList");
-			traceLB("Status code: " + statusCode);
+			traceLX("###GetLobbyList");
+			traceLX("Status code: " + statusCode);
 			if (statusCode != 200){
 				errorPanel("List Retrieval Failure: " + statusCode);
 				// Rerun? show failure
@@ -1592,7 +1796,7 @@
 				json = decode(data);
 			}catch(err:Error){
 				fail = true;
-				traceLB(err.getStackTrace());
+				traceLX(err.getStackTrace());
 			}
 			
 			var ld:Object = new Object();
@@ -1610,7 +1814,7 @@
 				}
 			}
 			else{
-				traceLB("NO ACTIVE LOBBIES");
+				traceLX("NO ACTIVE LOBBIES");
 				if (json.error)
 					errorPanel(json.error);
 				else
@@ -1630,7 +1834,7 @@
 		}
 		
 		public function redrawLobbyList(){
-			traceLB("##redrawLobby");
+			traceLX("##redrawLobby");
 			
 			var content:MovieClip = this.lobbyClip.lobbies.content;
 			for (var i:int = content.numChildren-1; i>=0; i--){
@@ -1701,7 +1905,7 @@
 		}
 		
 		public function redrawOptions(){
-			traceLB("##redrawOptions");
+			traceLX("##redrawOptions");
 			
 			var content:MovieClip = this.optionsPanel.options.content;
 			for (var i:int = content.numChildren-1; i>=0; i--){
@@ -1821,8 +2025,8 @@
 			
 			socket.getDataAsync("d2mods/api/lobby_status.php?lid=" + lid, 
 				function (statusCode:int, data:String){
-					traceLB("###LobbyRefresh");
-					traceLB("Status code: " + statusCode);
+					traceLX("###LobbyRefresh");
+					traceLX("Status code: " + statusCode);
 					if (statusCode != 200){
 						// Rerun? show failure
 						errorPanel("Lobby Refresh Failure: " + statusCode);
@@ -1888,8 +2092,8 @@
 		}
 		
 		public function getPopularModsCallback(statusCode:int, data:String) {
-			traceLB("###GetMods");
-			traceLB("Status code: " + statusCode);
+			traceLX("###GetMods");
+			traceLX("Status code: " + statusCode);
 			
 			var fail:Boolean = false;
 			var json = null;
@@ -1897,13 +2101,13 @@
 				json = decode(data);
 			}catch(err:Error){
 				fail = true;
-				traceLB(err.getStackTrace());
+				traceLX(err.getStackTrace());
 			}
-			//traceLB(data);
+			//traceLX(data);
 			
 			if (fail || statusCode != 200){
 				// Rerun? show failure
-				traceLB("FAILED: " + data);
+				traceLX("FAILED: " + data);
 				if (retryCount == -1)
 					retryCount = 2;
 					
@@ -1948,8 +2152,8 @@
 						this.gmiToOptions[gameModeId] = decode(mod.mod_options);
 					}
 					catch(err:Error){
-						traceLB("Unable to decode options: '" + mod.mod_options + "'");
-						traceLB(err.getStackTrace());
+						traceLX("Unable to decode options: '" + mod.mod_options + "'");
+						traceLX(err.getStackTrace());
 					}
 				}
 				
@@ -1957,7 +2161,7 @@
 				this.gmiToLobbyProvider[gameModeId] = new DataProvider();
 				this.gmiToLobbyProvider[gameModeId].push({label:"<ANY MAP>", data:"*"});
 				
-				//traceLB(mod.mod_maps);
+				//traceLX(mod.mod_maps);
 				var split:Array = mod.mod_maps.split(/,/);
 				for (var j:int = 0; j<split.length; j++){
 					var rxQuote:RegExp = /"([^"]+)"/ig
@@ -1977,24 +2181,24 @@
 		}
 		
 		/*public function getPopularModsCallback(statusCode:int, data:String) {
-			traceLB("###GetMods");
+			traceLX("###GetMods");
 			var json = decode(data);
-			//traceLB(data);
+			//traceLX(data);
 			
 			var rxId:RegExp = /id=(\d+)/ig;
 			this.modsProvider = new DataProvider();
 			
 			for (var i:int=0; i< json.length;i++){
 				var mod:Object = json[i];
-				//traceLB(mod.modName + " -- " + mod.workshopLink + " -- " + mod.modInfo);
-				//traceLB(Number(rxId.exec(mod.workshopLink)[1]));
+				//traceLX(mod.modName + " -- " + mod.workshopLink + " -- " + mod.modInfo);
+				//traceLX(Number(rxId.exec(mod.workshopLink)[1]));
 				var gameModeId:Number = Number(rxId.exec(mod.workshopLink)[1]);
 				
 				rxId = /id=(\d+)/ig;
-				//traceLB(rxId.exec(mod.modInfo)[1]);
+				//traceLX(rxId.exec(mod.modInfo)[1]);
 				var gdsModId:Number = Number(rxId.exec(mod.modInfo)[1]);
-				//traceLB(gameModeId + " -- " + gdsModId);
-				//traceLB('----');
+				//traceLX(gameModeId + " -- " + gdsModId);
+				//traceLX('----');
 				
 				this.modsProvider.push({label:mod.modName, data:gameModeId});
 			}
@@ -2012,18 +2216,18 @@
 		}
 
 		public function test6(event:MouseEvent) { //Lobby Status
-			traceLB("###STEAM_ID \""+Globals.instance.Loader_profile_mini.movieClip.ProfileMini_main.ProfileMini.Persona.steamIDNumber.text+"\"");
+			traceLX("###STEAM_ID \""+Globals.instance.Loader_profile_mini.movieClip.ProfileMini_main.ProfileMini.Persona.steamIDNumber.text+"\"");
 			socket.getDataAsync("d2mods/api/lobby_user_status.php?uid="+Globals.instance.Loader_profile_mini.movieClip.ProfileMini_main.ProfileMini.Persona.steamIDNumber.text, getLobbyStatus);
 		}
 		public function getLobbyStatus(statusCode:int, data:String) {
-			traceLB("###LOBBY STATUS");
+			traceLX("###LOBBY STATUS");
 			var json:Object = decode(data);
 			if (json.error) {
-				traceLB("Not in a lobby");
-				//traceLB("Result: "+json.error);
+				traceLX("Not in a lobby");
+				//traceLX("Result: "+json.error);
 				return;
 			}
-			traceLB("We are in a lobby for "+json.workshop_id+" with to suit a lobby of "+json.lobby_max_players+ " players!");
+			traceLX("We are in a lobby for "+json.workshop_id+" with to suit a lobby of "+json.lobby_max_players+ " players!");
 			if (json.lobby_leader == Globals.instance.Loader_profile_mini.movieClip.ProfileMini_main.ProfileMini.Persona.steamIDNumber.text) {
 				target_gamemode = json.workshop_id;
 				target_password = json.lobby_pass;
@@ -2031,15 +2235,15 @@
 				test1(new MouseEvent(MouseEvent.CLICK));
 			} else {
 				if (json.lobby_hosted == 1) {
-					traceLB("JOINING LOBBY "+json.lobby_id);
+					traceLX("JOINING LOBBY "+json.lobby_id);
 					target_gamemode = json.workshop_id;
 					target_lobby = json.lobby_id;
 					test2(new MouseEvent(MouseEvent.CLICK), json.lobby_pass);
 				} else {
-					traceLB("Games not ready, why were we called?!");
+					traceLX("Games not ready, why were we called?!");
 				}
 			}
-			traceLB(data);
+			traceLX(data);
 		}
 		
 		// JSON decoder
@@ -2210,7 +2414,8 @@
 		}
 		
 		public function onResize(re:ResizeManager) : * {
-			//traceLB("Injected by Ash47!\n\n\n");
+			//traceLX("Injected by Ash47!\n\n\n");
+			minigameLastPositions = new Object();
 			var rm = Globals.instance.resizeManager;
 			var currentRatio:Number =  re.ScreenWidth / re.ScreenHeight;
 			var divided:Number;
@@ -2232,9 +2437,11 @@
 			}
 							
 			correctedRatio =  re.ScreenHeight / originalHeight * divided;
+			var prevHeight:int = this.screenHeight;
+			var prevWidth:int = this.screenWidth;
 			this.screenHeight = re.ScreenHeight;
 			this.screenWidth = re.ScreenWidth;
-			traceLB("ratio: " + correctedRatio);
+			traceLX("ratio: " + correctedRatio);
 
 			this.scaleX = correctedRatio;
             this.scaleY = correctedRatio;
@@ -2252,6 +2459,14 @@
 				offset = 0;
 			lobbyBrowserClip.y = (re.ScreenHeight - lobbyBrowserClip.height + offset) / 2;//re.ScreenHeight * .25;
 			
+			minigamesPanelBg.scaleX = correctedRatio;
+			minigamesPanelBg.scaleY = correctedRatio;
+			minigamesPanelBg.x = (re.ScreenWidth / 2 - minigamesPanelBg.width / 2);//re.ScreenWidth * .3;
+			offset = (this.minigamesPanel.minigames.content.height - 516) * correctedRatio;
+			if (offset < 0)
+				offset = 0;
+			minigamesPanelBg.y = (re.ScreenHeight - minigamesPanelBg.height + offset) / 2;//re.ScreenHeight * .25;
+			
 			optionsPanelBg.scaleX = correctedRatio;
 			optionsPanelBg.scaleY = correctedRatio;
 			optionsPanelBg.x = (re.ScreenWidth / 2 - optionsPanelBg.width / 2);//re.ScreenWidth * .3;
@@ -2263,6 +2478,15 @@
 			scalingTopBarPanel.scaleX = correctedRatio;
 			scalingTopBarPanel.scaleY = correctedRatio;
 			logPanel.x = re.ScreenWidth / 2 - logPanel.width * scalingTopBarPanel.scaleX / 2;
+			
+			if (this.currentMinigame != null){
+				if (this.currentMinigame.resize(screenWidth, screenHeight, correctedRatio)){
+					this.currentMinigameClip.scaleX = correctedRatio;
+					this.currentMinigameClip.scaleY = correctedRatio;
+					this.currentMinigameClip.x = this.currentMinigameClip.x * (re.ScreenWidth / prevWidth )
+					this.currentMinigameClip.y = this.currentMinigameClip.y * (re.ScreenHeight / prevHeight )
+				}
+			}
 		}
 		
 				//Stolen from Frota
