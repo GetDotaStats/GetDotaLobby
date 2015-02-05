@@ -51,6 +51,8 @@
 	import flash.net.URLLoader;
 	import flash.net.URLRequest;
 	import flash.display.DisplayObject;
+	import flash.geom.Rectangle;
+	import flash.display.BitmapData;
 	
 	public class GetDotaLobby extends MovieClip {
 		// Game API related stuff
@@ -58,7 +60,7 @@
         public var globals:Object;
         public var elementName:String;
 		
-		private var version:String = "0.18";
+		private var version:String = "0.19";
 		private var DEBUG:Boolean = false;
 		private var versionChecked:Boolean = false;
 		
@@ -97,6 +99,10 @@
 		public var currentUrl:String = "";
 		public var lobbyState:Object;
 		public var lobbyStateTimer:Timer;
+		
+		public var but:MovieClip = null;
+		public var but2:MovieClip = null;
+		public var but3:MovieClip = null;
 		
 		public var currentMinigameClip = null;
 		public var currentMinigame = null;
@@ -137,8 +143,41 @@
 				 {"label": "Middle East", "data":11},
 				 {"label": "South Africa", "data":12}]);
 		
+		private var currentLanguage:String = "english";
+		private var langTest:String = "#DOTA_join_private_error1";
+		private var languageTable:Object = {
+			"The password entered does not match the password created by the lobby-leader.":"english",
+			"A senha inserida não corresponde à senha criada pelo líder da sala.":"brazilian",
+			"Въведената парола не съвпада със зададената от лидера на лобито.":"bulgarian",
+			"Zadané heslo se neshoduje s heslem vytvořeným správcem lobby.":"czech",
+			"Den indtastede adgangskode er ikke den samme som adgangskoden lavet af lederen af lobbyen.":"danish",
+			"Het wachtwoord wat je hebt ingevoerd komt niet overeen met het wachtwoord dat de lobbyleider gekozen heeft.":"dutch",
+			"Antamasi salasana ei täsmää aulan johtajan asettaman salasanan kanssa.":"finnish",
+			"Le mot de passe ne correspond pas à celui créé par le leader de la salle d'attente.":"french",
+			"Das eingegebene Passwort stimmt nicht mit dem Passwort überein, das vom Lobbyleiter festgelegt wurde.":"german",
+			"Ο κωδικός που εισήγατε δεν ταιριάζει με τον κωδικό του υπεύθυνου παιχνιδιού.":"greek",
+			"A beírt jelszó nem egyezik meg a várószoba-főnök által létrehozottal.":"hungarian",
+			"La password inserita non corrisponde a quella creata dal leader della lobby.":"italian",
+			"入力されたパスワードは、ロビーリーダーが設定したパスワードと一致しません。":"japanese",
+			"입력하신 비밀번호는 방장이 정한 비밀번호와 맞지 않습니다.":"korean",
+			//"입력하신 비밀번호는 방장이 정한 비밀번호와 맞지 않습니다.":"koreana",
+			"Passordet du skrev inn stemmer ikke med passordet laget av lobbylederen.":"norwegian",
+			"Wprowadzono niepoprawne hasło.":"polish",
+			"A palavra-passe introduzida não combina com a palavra-passe criada pelo líder do lobby.":"portuguese",
+			"Parola introdusă nu se potrivește cu parola creată de liderul camerei.":"romanian",
+			"Введенный пароль не соответствует установленному руководителем лобби паролю.":"russian",
+			"输入的密码与房主设置的不符。":"schinese",
+			"La contraseña introducida no coincide con la establecida por el anfitrión de la sala.":"spanish",
+			"Lösenordet du angav matchar inte lösenordet som skapades av lobbyledaren.":"swedish",
+			"輸入的密碼與廳主設定的密碼不符。":"tchinese",
+			"รหัสผ่านที่ใส่ไม่ตรงกับที่หัวหน้าห้องกำหนดไว้":"thai",
+			"Bu parola, lobi lideri tarafından yaratılan parola ile uyuşmuyor.":"turkish",
+			"Уведений пароль не збігається з тим, який зазначив господар лобі.":"ukrainian",
+			"Уведений пароль не збігається з тим, який зазначив господар лобі.":"ukrainian"
+		};
+		
 		//These are test values, when API is available, read from them
-		//var target_gamemode:int = 322254016; //Shitwars
+		//var target_gamemode:int = 322254016; 
 		var target_gamemode:int; //Warchasers
 		var target_password:String;
 		var target_lobby:int;
@@ -191,6 +230,7 @@
 		
 		public function startMinigame(gameName:String, file:String, debug:Boolean = false){
 			minigamesPanelBg.visible = false;
+			file = "minigames/" + gameName + "/" + file;
 				
 			traceLX('##Start Minigame: ' + gameName + " -- " + file + " -- " + debug);
 			
@@ -199,7 +239,7 @@
 			
 			//var waitToLoadTimer:Timer = new Timer(200,0);
 			var loadComplete:Function = function(e:Event){
-				trace("LOAD COMPLETE");
+				traceLX("MINIGAME LOAD COMPLETE");
 				var mc:MovieClip = new MovieClip();
 				
 				var panelClass:Class = getDefinitionByName("DB_inset") as Class;
@@ -266,12 +306,11 @@
 				}
 				
 				globals.Loader_top_bar.movieClip.addChild(mc);
-				trace("Making minigame");
 				var mg:Minigame = loader.content as Minigame;
 				var gameCloseClicked:Function = function(e:MouseEvent){
-					trace('CLOSE CLICKED');
+					traceLX('Minigame Close Clicked')
 					if (mg.close()){
-						trace('CLOSING');
+						traceLX('CLOSING Minigame');
 						closeMinigame();
 					}
 				};
@@ -280,9 +319,9 @@
 				
 				PrintTable(minigameKV);
 				
-				title.text = mg.title;
 				var uid:String = Globals.instance.Loader_profile_mini.movieClip.ProfileMini_main.ProfileMini.Persona.steamIDNumber.text;
-				mg.minigameAPI = new MinigameAPI(mg, mc, panel, indent, outer, title, close, lxClip, gameName, debug, uid);
+				mg.minigameAPI = new MinigameAPI(mg, mc, panel, indent, outer, title, close, lxClip, gameName, debug, uid, currentLanguage);
+				title.text = mg.minigameAPI.translate(mg.title);
 				mg.globals = globals;
 				mg.gameAPI = gameAPI;
 				mg.debug = debug;
@@ -321,10 +360,6 @@
 			currentMinigame = null;
 		}
 		
-		public function writeMinigamesKV(){
-			globals.GameInterface.SaveKVFile(minigameData, 'resource/flash3/minigamedata.kv', "MinigameData");
-		}
-		
 		public function test7(){
 			traceLX('7 called');
 		}
@@ -333,21 +368,33 @@
 			//traceLX("injected by SinZ!\n\n\n");
 			socket = new D2HTTPSocket("getdotastats.com", "176.31.182.87");
 			this.gameAPI.OnReady();
+			
+			var lang:String = languageTable[globals.GameInterface.Translate(langTest)];
+			if (lang == null){
+				traceLX("Unable to determine client language.  Defaulting to english");
+			}
+			else{
+				traceLX("Client language: " + lang);
+				currentLanguage = lang;
+			}
 
-			minigameKV = globals.GameInterface.LoadKVFile('resource/flash3/minigames.kv');
-			if (minigameKV == null || minigameKV["Games"] == null){
-				minigameKV = new Object();
-				minigameKV["Games"] = new Object();
-				globals.GameInterface.SaveKVFile(minigameKV, 'resource/flash3/minigames.kv', "Minigames");
-			}
+			var kv:Object = globals.GameInterface.LoadKVFile('resource/flash3/minigames.kv');
 			
-			minigameData = globals.GameInterface.LoadKVFile('resource/flash3/minigamedata.kv');
-			if (minigameData == null || minigameData["GameData"] == null){
-				minigameData = new Object();
-				minigameData["GameData"] = new Object();
-				globals.GameInterface.SaveKVFile(minigameData, 'resource/flash3/minigamedata.kv', "MinigameData");
+			minigameKV = new Object();
+			minigameKV.Games = new Object();
+			for (var gameName:String in kv){
+				if (kv[gameName] == "1"){
+					var gameKV:Object = globals.GameInterface.LoadKVFile('resource/flash3/minigames/' + gameName + '/game.kv');
+					if (gameKV != null && gameKV.File != null){
+						traceLX("Minigame '" + gameName + "' Found.");
+						minigameKV.Games[gameName] = gameKV;
+					}
+					else{
+						traceLX("Unable to find game.kv for minigame '" + gameName + "'");
+					}
+				} 
 			}
-			
+
 			if (DEBUG){
 				createTestButton("Create Game", test1);
 				createTestButton("Join Game", test2);
@@ -364,9 +411,9 @@
 			var mc = new bgClass();
 			
 			// Play tab buttons
-			var but:MovieClip = createTestButton("HOST CUSTOM LOBBY", hostGame);
-			var but2:MovieClip = createTestButton("CUSTOM LOBBY BROWSER", lobbyBrowser);
-			var but3:MovieClip = createTestButton("MINIGAMES!", showMinigames);
+			but = createTestButton("HOST CUSTOM LOBBY", hostGame);
+			but2 = createTestButton("CUSTOM LOBBY BROWSER", lobbyBrowser);
+			but3 = createTestButton("MINIGAMES!", showMinigames);
 			this.removeChild(but);
 			this.removeChild(but2);
 			this.removeChild(but3);
@@ -377,11 +424,34 @@
 			but.y = customButton.y + 50;
 			but2.x = customButton.x;
 			but2.y = but.y + but.height + 2;
-			but3.x = customButton.x;
-			but3.y = but2.y + but2.height + 2;
+			var point:Point = globals.Loader_play.movieClip.PlayWindow.PlayMain.Nav.localToGlobal(new Point(but2.x, but2.y + but2.height + 2));
+			var point2:Point = globals.Loader_play.movieClip.PlayWindow.PlayMain.Nav.localToGlobal(new Point(but2.x + but2.width, but2.y + but2.height + 2));
+			
+			
+			point = globals.Loader_top_bar.movieClip.globalToLocal(point);
+			point2 = globals.Loader_top_bar.movieClip.globalToLocal(point2);
+			
+			but3.x = point.x
+			but3.y = point.y;
+			var scale:Number = (point2.x - point.x) / but3.width;
+			but3.scaleX = scale;
+			but3.scaleY = scale;
 			globals.Loader_play.movieClip.PlayWindow.PlayMain.Nav.addChild(but);
 			globals.Loader_play.movieClip.PlayWindow.PlayMain.Nav.addChild(but2);
-			globals.Loader_play.movieClip.PlayWindow.PlayMain.Nav.addChild(but3);
+			//globals.Loader_play.movieClip.PlayWindow.PlayMain.Nav.addChild(but3);
+			globals.Loader_top_bar.movieClip.addChildAt(but3, 0);
+			
+			but3.visible = globals.Loader_play.movieClip.visible;
+			
+			var oldDBSwitch:Function = globals.Loader_top_bar.movieClip.gameAPI.DashboardSwitchToSection;
+			globals.Loader_top_bar.movieClip.gameAPI.DashboardSwitchToSection = function(tab:int){
+				if (tab == 2)
+					but3.visible = true;
+				else
+					but3.visible = false;
+					
+				oldDBSwitch(tab);
+			};
 			
 			// Scaling top bar container panel
 			scalingTopBarPanel = new MovieClip();
@@ -700,8 +770,8 @@
 			
 			var games:Object = minigameKV.Games;
 			globals.PrecacheImage("images/spellicons/invoker_empty1.png");
-			for (var gameName:String in games){
-				var game:Object = games[gameName];
+			for (var gName:String in games){
+				var game:Object = games[gName];
 				if (game.Image != null){
 					globals.PrecacheImage(game.Image);
 				}
@@ -854,10 +924,28 @@
 				me.addEventListener(MouseEvent.CLICK, fun);
 				
 				if (game.Image == null){
-					Globals.instance.LoadImage("images/spellicons/invoker_empty1.png",me.minigameIcon, false); me.minigameIcon.width = 64; me.minigameIcon.height = 64;
+					Globals.instance.LoadImage("images/spellicons/invoker_empty1.png",me.minigameIcon, false); 
+					me.minigameIcon.width = 64; me.minigameIcon.height = 64;
 				}
 				else{
-					Globals.instance.LoadImage(game.Image,me.minigameIcon, false); me.minigameIcon.width = 64; me.minigameIcon.height = 64;
+					Globals.instance.LoadImage(game.Image,me.minigameIcon, false);
+					var wid:Number = me.minigameIcon.width;
+					var hei:Number = me.minigameIcon.height;
+					var scale:Number = 1;
+					
+					if (hei < wid){
+						scale = 64 / wid;
+						me.minigameIcon.y += (64 - (hei * scale)) / 2
+						me.mgbg.height -= 64 - (hei * scale)
+					}
+					else{
+						scale = 64 / hei;
+						me.minigameIcon.x += (64 - (wid * scale)) / 2
+						me.mgbg.width -= 64 - (wid * scale)
+					}
+					
+					me.minigameIcon.width = wid * scale; 
+					me.minigameIcon.height = hei * scale;
 				}
 				
 				
@@ -2479,6 +2567,18 @@
 			scalingTopBarPanel.scaleY = correctedRatio;
 			logPanel.x = re.ScreenWidth / 2 - logPanel.width * scalingTopBarPanel.scaleX / 2;
 			
+			var point:Point = globals.Loader_play.movieClip.PlayWindow.PlayMain.Nav.localToGlobal(new Point(but2.x, but2.y + but2.height + 2));
+			var point2:Point = globals.Loader_play.movieClip.PlayWindow.PlayMain.Nav.localToGlobal(new Point(but2.x + but2.width, but2.y + but2.height + 2));
+			
+			point = globals.Loader_top_bar.movieClip.globalToLocal(point);
+			point2 = globals.Loader_top_bar.movieClip.globalToLocal(point2);
+			
+			but3.x = point.x
+			but3.y = point.y;
+			var scale:Number = (point2.x - point.x) / but3.width;
+			but3.scaleX *= scale;
+			but3.scaleY *= scale;
+			
 			if (this.currentMinigame != null){
 				if (this.currentMinigame.resize(screenWidth, screenHeight, correctedRatio)){
 					this.currentMinigameClip.scaleX = correctedRatio;
@@ -2610,5 +2710,4 @@
             }
         }
     }
-	
 }

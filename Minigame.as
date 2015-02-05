@@ -8,7 +8,7 @@
 		public var globals:Object;
 		public var gameAPI:Object;
 		
-		public var title:String = "Minigame Title";
+		public var title:String = "#minigame_title";
 		public var minigameID:String = "";
 
 		public function Minigame() {

@@ -1,5 +1,4 @@
 ﻿package  {
-	import flash.events.KeyboardEvent;
 	
 	public interface IMinigameAPI {
 
@@ -7,11 +6,12 @@
 		function getData() : Object;
 		function saveData() : void;
 		
-		function resizeGameWindow() : void;
+		function resizeGameWindow(wid:Number = -1, hei:Number = -1) : void;
 		function closeMinigame() : void;
 		function updateTitle() : void;
 		function updateLeaderboard(leaderboard:String, value:Number) : void;
 		function getUserID() : String;
+	 	function translate(str:String) : String;
 		
 		function log(obj:Object) : void;
 	}
