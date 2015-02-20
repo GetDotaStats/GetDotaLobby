@@ -1,0 +1,3 @@
+[submodule "stat-minigame"]
+	path = stat-minigame
+	url = https://github.com/GetDotaStats/stat-minigame.git

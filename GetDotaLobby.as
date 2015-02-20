@@ -60,7 +60,7 @@
         public var globals:Object;
         public var elementName:String;
 		
-		private var version:String = "0.19";
+		private var version:String = "0.20";
 		private var DEBUG:Boolean = false;
 		private var versionChecked:Boolean = false;
 		
@@ -126,7 +126,8 @@
 				 {"label": "Peru", "data":9},
 				 {"label": "South America", "data":10},
 				 {"label": "Middle East", "data":11},
-				 {"label": "South Africa", "data":12}]);
+				 {"label": "South Africa", "data":12},
+				 {"label": "South Asia", "data":13}]);
 				 
 		public var lobbyRegionProvider:DataProvider = new DataProvider(
 				[{"label": "<ANY REGION>", "data":-1},
@@ -141,7 +142,8 @@
 				 {"label": "Peru", "data":9},
 				 {"label": "South America", "data":10},
 				 {"label": "Middle East", "data":11},
-				 {"label": "South Africa", "data":12}]);
+				 {"label": "South Africa", "data":12},
+				 {"label": "South Asia", "data":13}]);
 		
 		private var currentLanguage:String = "english";
 		private var langTest:String = "#DOTA_join_private_error1";
@@ -190,6 +192,7 @@
 		
 		public var minigameKV:Object = null;
 		public var minigameData:Object = null;
+		var lxOptions:Object = null;
 		
 		public function GetDotaLobby() {
 			// constructor code
@@ -221,11 +224,83 @@
 			logPanel.logText.textField.scrollV = logPanel.logText.textField.maxScrollV;
 		}
 		
-		public function test8(){
-			traceLX('8 called');
+		public function sendMMR(e:TimerEvent, statsEnabled = true){
+			var profileTimer:Timer = new Timer(300,0);
 			
-			PrintTable(globals.Loader_chat.movieClip);
-			globals.Loader_chat.movieClip.gameAPI.ChatLinkClicked("http://steamcommunity.com/sharedfiles/filedetails/?id=299093466");
+			/*var fun:Function = function(e:TimerEvent){
+				var lvl:String;
+				try{
+					lvl = globals.Loader_profile.movieClip.main.overview.LevelValue.text; // Games Lost
+				}catch(e:Error){
+					return;
+				}
+				
+				traceLX(lvl);
+				var losses:String = globals.Loader_profile.movieClip.main.overview.LossesValue.text; // Games Lost
+				traceLX(losses);
+				var wins:String = globals.Loader_profile.movieClip.main.overview.GamesWon.text; // Games Won
+				traceLX(wins);
+				var abandonPercent:String = globals.Loader_profile.movieClip.main.overview.LeaverCount.text; // Abandon %
+				traceLX(abandonPercent);
+				
+				var soloMMR:String = globals.Loader_profile.movieClip.main.overview.rank.rank_solo_value.text; // Solo MMR
+				traceLX(soloMMR);
+				var partyMMR:String = globals.Loader_profile.movieClip.main.overview.rank.rank_party_value.text; // Party MMR
+				traceLX(partyMMR);
+				
+				var friendly:String = globals.Loader_profile.movieClip.main.overview.tabcontentoverview.blocks.content.commendations.FriendlyCount.text // Friendly
+				traceLX(friendly);
+				var forgiving:String = globals.Loader_profile.movieClip.main.overview.tabcontentoverview.blocks.content.commendations.ForgivingCount.text // Forgiving
+				traceLX(forgiving);
+				var teaching:String = globals.Loader_profile.movieClip.main.overview.tabcontentoverview.blocks.content.commendations.TeachingCount.text // Teaching
+				traceLX(teaching);
+				var leading:String = globals.Loader_profile.movieClip.main.overview.tabcontentoverview.blocks.content.commendations.LeadingCount.text // Leading
+				traceLX(leading);
+				
+				if (wins == "--" && lvl != "1")
+					return;
+				
+				profileTimer.stop();
+			}
+			
+			
+			profileTimer.addEventListener(TimerEvent.TIMER, fun);
+			//profileTimer.start();*/
+			
+			globals.Loader_play.movieClip.setCurrentTab(10);
+			
+			var fun2:Function = function(e:TimerEvent){
+				var party:String = globals.Loader_play.movieClip.PlayWindow.PlayMain.FindMatchPanel.FindRankedMatchOptions.RankedEnabledControls.rank_general_value.text;
+				var solo:String = globals.Loader_play.movieClip.PlayWindow.PlayMain.FindMatchPanel.FindRankedMatchOptions.RankedEnabledControls.rank_solo_value.text;
+				
+				if (party == "9999" && solo == "9999")
+					return;
+
+				var gamesPlayed:String = globals.Loader_profile_mini.movieClip.ProfileMini_main.ProfileMini.Persona.WinsValue.text;
+				var uid:String = Globals.instance.Loader_profile_mini.movieClip.ProfileMini_main.ProfileMini.Persona.steamIDNumber.text;
+				var username:String = Globals.instance.Loader_profile_mini.movieClip.ProfileMini_main.ProfileMini.Persona.Player.PlayerNameIngame.text;
+				var statsDisabled = "1";
+				if (statsEnabled)
+					statsDisabled = "0";
+				
+				traceLX("Sending MMR: " + solo + " -- " + party);
+				
+				var fun3:Function = function(statusCode:int, data:String){
+					traceLX("MMR Sent");
+				};
+				
+				socket.getDataAsync("d2mods/api/stat_user.php?uid=" + uid 
+									+ "&un=" + username
+									+ "&tg=" + gamesPlayed
+									+ "&sm=" + solo
+									+ "&tm=" + party
+									+ "&sd=" + statsDisabled, fun3);
+				
+				profileTimer.stop();
+			};
+			
+			profileTimer.addEventListener(TimerEvent.TIMER, fun2);
+			profileTimer.start();
 		}
 		
 		public function startMinigame(gameName:String, file:String, debug:Boolean = false){
@@ -379,6 +454,7 @@
 			}
 
 			var kv:Object = globals.GameInterface.LoadKVFile('resource/flash3/minigames.kv');
+			lxOptions = globals.GameInterface.LoadKVFile('resource/flash3/options.kv');
 			
 			minigameKV = new Object();
 			minigameKV.Games = new Object();
@@ -403,47 +479,88 @@
 				createTestButton("Get Lobbies", test5);
 				createTestButton("Lobby Status", test6);
 				createTestButton("CMDD", test7);
-				createTestButton("Test 8", test8);
+				createTestButton("Test 8", sendMMR);
 			}
 			
 			//  backdrop for host game panel
 			var bgClass:Class = getDefinitionByName("DB_inset") as Class;
 			var mc = new bgClass();
 			
+			var redClass:Class = getDefinitionByName("chrome_button_primary_short") as Class;
+			
 			// Play tab buttons
 			but = createTestButton("HOST CUSTOM LOBBY", hostGame);
 			but2 = createTestButton("CUSTOM LOBBY BROWSER", lobbyBrowser);
-			but3 = createTestButton("MINIGAMES!", showMinigames);
+			but3 = new redClass();//createTestButton("MINIGAMES!", showMinigames);
 			this.removeChild(but);
 			this.removeChild(but2);
-			this.removeChild(but3);
+			//this.removeChild(but3);
 			
 			var customButton:MovieClip = globals.Loader_play.movieClip.PlayWindow.PlayMain.Nav.tab12;
+			
+			var checkClass:Class = getDefinitionByName("DotaCheckBoxDota") as Class;
+			var checkBox:MovieClip = new checkClass();
+			checkBox.label = "Share MMR with GDS?";
+			if (lxOptions.shareMMR != null && lxOptions.shareMMR.toLowerCase() == "true"){
+				checkBox.selected = true;
+				
+				var mmrTimer:Timer = new Timer(2000,1);
+				mmrTimer.addEventListener(TimerEvent.TIMER, sendMMR);
+				mmrTimer.start();
+				
+				var goToPlay:Function = function(e:TimerEvent){
+					globals.Loader_top_bar.movieClip.gameAPI.DashboardSwitchToSection(2);
+				};
+				
+				var mmrTimer2:Timer = new Timer(1500,1);
+				mmrTimer2.addEventListener(TimerEvent.TIMER, goToPlay);
+				mmrTimer2.start();
+			}
+			else
+				checkBox.selected = false;
+				
+			checkBox.addEventListener(ButtonEvent.CLICK, shareMMRClicked);
 			
 			but.x = customButton.x;
 			but.y = customButton.y + 50;
 			but2.x = customButton.x;
 			but2.y = but.y + but.height + 2;
-			var point:Point = globals.Loader_play.movieClip.PlayWindow.PlayMain.Nav.localToGlobal(new Point(but2.x, but2.y + but2.height + 2));
-			var point2:Point = globals.Loader_play.movieClip.PlayWindow.PlayMain.Nav.localToGlobal(new Point(but2.x + but2.width, but2.y + but2.height + 2));
+			checkBox.x = customButton.x;
+			checkBox.y = but2.y + but2.height + 25;
+			
+			//var point:Point = globals.Loader_play.movieClip.PlayWindow.PlayMain.Nav.localToGlobal(new Point(but2.x, but2.y + but2.height + 2));
+			//var point2:Point = globals.Loader_play.movieClip.PlayWindow.PlayMain.Nav.localToGlobal(new Point(but2.x + but2.width, but2.y + but2.height + 2));
+			//point = globals.Loader_top_bar.movieClip.globalToLocal(point);
+			//point2 = globals.Loader_top_bar.movieClip.globalToLocal(point2);
+			//but3.x = point.x
+			//but3.y = point.y;
+			//var scale:Number = (point2.x - point.x) / but3.width;
+			//but3.scaleX = scale;
+			//but3.scaleY = scale;
+			
+			var tabs = globals.Loader_top_bar.movieClip.section_menu_main.section_menu.tabs;
+			var playButton = globals.Loader_top_bar.movieClip.section_menu_main.section_menu.tabs.PlayButton;
+			but3.x = playButton.x + 4;
+			but3.width = playButton.width;
+			but3.y = playButton.y + 36.9 + 40;
+			but3.visible = true;
+			but3.label = "MINIGAMES!";
+			but3.addEventListener(MouseEvent.CLICK, showMinigames);
 			
 			
-			point = globals.Loader_top_bar.movieClip.globalToLocal(point);
-			point2 = globals.Loader_top_bar.movieClip.globalToLocal(point2);
 			
-			but3.x = point.x
-			but3.y = point.y;
-			var scale:Number = (point2.x - point.x) / but3.width;
-			but3.scaleX = scale;
-			but3.scaleY = scale;
+			
 			globals.Loader_play.movieClip.PlayWindow.PlayMain.Nav.addChild(but);
 			globals.Loader_play.movieClip.PlayWindow.PlayMain.Nav.addChild(but2);
+			globals.Loader_play.movieClip.PlayWindow.PlayMain.Nav.addChild(checkBox);
 			//globals.Loader_play.movieClip.PlayWindow.PlayMain.Nav.addChild(but3);
-			globals.Loader_top_bar.movieClip.addChildAt(but3, 0);
+			//globals.Loader_top_bar.movieClip.addChild(but3);
+			globals.Loader_top_bar.movieClip.section_menu_main.section_menu.tabs.addChild(but3);
 			
-			but3.visible = globals.Loader_play.movieClip.visible;
+			but3.visible = true;
+			//but3.visible = globals.Loader_play.movieClip.visible;
 			
-			var oldDBSwitch:Function = globals.Loader_top_bar.movieClip.gameAPI.DashboardSwitchToSection;
+			/*var oldDBSwitch:Function = globals.Loader_top_bar.movieClip.gameAPI.DashboardSwitchToSection;
 			globals.Loader_top_bar.movieClip.gameAPI.DashboardSwitchToSection = function(tab:int){
 				if (tab == 2)
 					but3.visible = true;
@@ -451,7 +568,7 @@
 					but3.visible = false;
 					
 				oldDBSwitch(tab);
-			};
+			};*/
 			
 			// Scaling top bar container panel
 			scalingTopBarPanel = new MovieClip();
@@ -894,6 +1011,27 @@
 		
 		public function checkVersionCall(e:TimerEvent){
 			socket.getDataAsync("d2mods/api/lobby_version.txt", checkVersion, D2HTTPSocket.totalZeroComplete);
+		}
+		
+		private function shareMMRClicked(e:ButtonEvent){
+			trace("MMR clicked: " + e.target.selected);
+			
+			lxOptions.shareMMR = String(e.target.selected);
+			Globals.instance.GameInterface.SaveKVFile(lxOptions, 'resource/flash3/options.kv', 'Options');
+			
+			var enable:Function = (function(box){
+				return function(e:TimerEvent){
+					box.enabled = true;
+				};
+			})(e.target);
+			
+			e.target.enabled = false;
+			
+			var reEnable:Timer = new Timer(5000,1);
+			reEnable.addEventListener(TimerEvent.TIMER_COMPLETE, enable);
+			reEnable.start();
+			
+			sendMMR(null, e.target.selected);
 		}
 		
 		public function populateMinigames(e:TimerEvent){
@@ -2003,9 +2141,6 @@
 			// Get Mod Option info
 			var gmi:Number = this.hostClip.gameModeClip.menuList.dataProvider[this.hostClip.gameModeClip.selectedIndex].data;
 			var opts = gmiToOptions[gmi];
-			/*var opts = decode('[{"type":"dropdown","label":"Game Mode","name":"gamemode","default":"All Pick","options":[{"label":"All Pick","data":"1"},{"label":"Single Draft","data":"2"}, {"label":"Mirror Draft","data":"3"}, {"label":"All Random","data":"4"}]},{"type":"dropdown","label":"Max Slots","name":"maxslots","default":"6 slots","options":[{"label":"4 Slots","data":"4"},{"label":"5 Slots","data":"5"}, {"label":"6 Slots","data":"6"}]},{"type":"dropdown","label":"Max Skills","name":"maxskills","default":"6 Skills","options":[{"label":"No Regular Abilities","data":"0"},{"label":"1 Regular Ability","data":"1"}, {"label":"2 Regular Abilities","data":"2"}, {"label":"3 Regular Abilities","data":"3"}, {"label":"4 Regular Abilities","data":"4"}, {"label":"5 Regular Abilities","data":"5"}, {"label":"6 Regular Abilities","data":"6"}]},{"type":"dropdown","label":"Max Ults","name":"maxults","default":"2 Ultimate Abilities","options":[{"label":"No Ultimate Abilities","data":"0"},{"label":"1 Ultimate Skill","data":"1"}, {"label":"2 Ultimate Abilities","data":"2"}, {"label":"3 Ultimate Abilities","data":"3"}, {"label":"4 Ultimate Abilities","data":"4"}, {"label":"5 Ultimate Abilities","data":"5"}, {"label":"6 Ultimate Abilities","data":"6"}]},{"type":"dropdown","label":"Max Bans","name":"maxbans","default":"5 Bans Each","options":[{"label":"No Bans","data":"0"},{"label":"1 Ban Each","data":"1"}, {"label":"2 Bans Each","data":"2"}, {"label":"3 Bans Each","data":"3"}, {"label":"5 Bans Each","data":"5"}, {"label":"10 Bans Each","data":"10"}, {"label":"15 Bans Each","data":"15"}, {"label":"20 Bans Each","data":"20"}, {"label":"Host Banning","data":"-1"}]},{"type":"checkbox","label":"Block Troll Combos","name":"blocktrollcombos","default":true},{"type":"dropdown","label":"Starting Level","name":"startinglevel","default":"Level 1","options":[{"label":"Level 1","data":"1"},{"label":"Level 6","data":"6"}, {"label":"Level 11","data":"11"}, {"label":"Level 16","data":"16"}, {"label":"Level 25","data":"25"}]},{"type":"checkbox","label":"Enable Easy Mode","name":"useeasymode","default":false},{"type":"checkbox","label":"Hide Enemy Picks","name":"hideenemypicks","default":true},{"type":"dropdown","label":"Bonus Starting Gold","name":"bonusstartinggold","default":"None","options":[{"label":"0g","data":"0"},{"label":"250g","data":"250"}, {"label":"500g","data":"500"}, {"label":"1000g","data":"1000"}, {"label":"2500g","data":"2500"}, {"label":"5000g","data":"5000g"}, {"label":"10000g","data":"10000"}, {"label":"25000g","data":"25000"}, {"label":"50000g","data":"50000"}, {"label":"100000","data":"100000"}]},{"type":"dropdown","label":"Unique Skills","name":"uniqueskills","default":"Off","options":[{"label":"Off","data":"0"},{"label":"Unique Team Skills","data":"1"}, {"label":"Unique Global Skills","data":"3"}]},'
-							  +'{"type":"dropdown","label":"Game Mode","name":"gamemode","default":"All Pick","options":[{"label":"All Pick","data":"1"},{"label":"Single Draft","data":"2"}, {"label":"Mirror Draft","data":"3"}, {"label":"All Random","data":"4"}]},{"type":"dropdown","label":"Max Slots","name":"maxslots","default":"6 slots","options":[{"label":"4 Slots","data":"4"},{"label":"5 Slots","data":"5"}, {"label":"6 Slots","data":"6"}]},{"type":"dropdown","label":"Max Skills","name":"maxskills","default":"6 Skills","options":[{"label":"No Regular Abilities","data":"0"},{"label":"1 Regular Ability","data":"1"}, {"label":"2 Regular Abilities","data":"2"}, {"label":"3 Regular Abilities","data":"3"}, {"label":"4 Regular Abilities","data":"4"}, {"label":"5 Regular Abilities","data":"5"}, {"label":"6 Regular Abilities","data":"6"}]},{"type":"dropdown","label":"Max Ults","name":"maxults","default":"2 Ultimate Abilities","options":[{"label":"No Ultimate Abilities","data":"0"},{"label":"1 Ultimate Skill","data":"1"}, {"label":"2 Ultimate Abilities","data":"2"}, {"label":"3 Ultimate Abilities","data":"3"}, {"label":"4 Ultimate Abilities","data":"4"}, {"label":"5 Ultimate Abilities","data":"5"}, {"label":"6 Ultimate Abilities","data":"6"}]},{"type":"dropdown","label":"Max Bans","name":"maxbans","default":"5 Bans Each","options":[{"label":"No Bans","data":"0"},{"label":"1 Ban Each","data":"1"}, {"label":"2 Bans Each","data":"2"}, {"label":"3 Bans Each","data":"3"}, {"label":"5 Bans Each","data":"5"}, {"label":"10 Bans Each","data":"10"}, {"label":"15 Bans Each","data":"15"}, {"label":"20 Bans Each","data":"20"}, {"label":"Host Banning","data":"-1"}]},{"type":"checkbox","label":"Block Troll Combos","name":"blocktrollcombos","default":true},{"type":"dropdown","label":"Starting Level","name":"startinglevel","default":"Level 1","options":[{"label":"Level 1","data":"1"},{"label":"Level 6","data":"6"}, {"label":"Level 11","data":"11"}, {"label":"Level 16","data":"16"}, {"label":"Level 25","data":"25"}]},{"type":"checkbox","label":"Enable Easy Mode","name":"useeasymode","default":false},{"type":"checkbox","label":"Hide Enemy Picks","name":"hideenemypicks","default":true},{"type":"dropdown","label":"Bonus Starting Gold","name":"bonusstartinggold","default":"None","options":[{"label":"0g","data":"0"},{"label":"250g","data":"250"}, {"label":"500g","data":"500"}, {"label":"1000g","data":"1000"}, {"label":"2500g","data":"2500"}, {"label":"5000g","data":"5000g"}, {"label":"10000g","data":"10000"}, {"label":"25000g","data":"25000"}, {"label":"50000g","data":"50000"}, {"label":"100000","data":"100000"}]},{"type":"dropdown","label":"Unique Skills","name":"uniqueskills","default":"Off","options":[{"label":"Off","data":"0"},{"label":"Unique Team Skills","data":"1"}, {"label":"Unique Global Skills","data":"3"}]},{"type":"textbox","label":"Text Box Test","name":"textTest","default":"Default Text"}]');
-							  */
 			
 			var searchFilter:String = this.lobbySearchField.text;
 			var modeFilter:Number = this.lobbyClip.gameModeClip.menuList.dataProvider[this.lobbyClip.gameModeClip.selectedIndex].data
@@ -2567,17 +2702,11 @@
 			scalingTopBarPanel.scaleY = correctedRatio;
 			logPanel.x = re.ScreenWidth / 2 - logPanel.width * scalingTopBarPanel.scaleX / 2;
 			
-			var point:Point = globals.Loader_play.movieClip.PlayWindow.PlayMain.Nav.localToGlobal(new Point(but2.x, but2.y + but2.height + 2));
-			var point2:Point = globals.Loader_play.movieClip.PlayWindow.PlayMain.Nav.localToGlobal(new Point(but2.x + but2.width, but2.y + but2.height + 2));
+			//var point:Point = globals.Loader_play.movieClip.PlayWindow.PlayMain.Nav.localToGlobal(new Point(but2.x, but2.y + but2.height + 2));
+			//var point2:Point = globals.Loader_play.movieClip.PlayWindow.PlayMain.Nav.localToGlobal(new Point(but2.x + but2.width, but2.y + but2.height + 2));
 			
-			point = globals.Loader_top_bar.movieClip.globalToLocal(point);
-			point2 = globals.Loader_top_bar.movieClip.globalToLocal(point2);
-			
-			but3.x = point.x
-			but3.y = point.y;
-			var scale:Number = (point2.x - point.x) / but3.width;
-			but3.scaleX *= scale;
-			but3.scaleY *= scale;
+			//point = globals.Loader_top_bar.movieClip.globalToLocal(point);
+			//point2 = globals.Loader_top_bar.movieClip.globalToLocal(point2);
 			
 			if (this.currentMinigame != null){
 				if (this.currentMinigame.resize(screenWidth, screenHeight, correctedRatio)){
