@@ -687,6 +687,12 @@
 			this.hostClip.regionClip.rowHeight = 24;
 			this.hostClip.regionClip.setDataProvider(this.regionProvider);
 			this.hostClip.regionClip.setSelectedIndex(0);
+			this.hostClip.regionClip.menuList.addEventListener(ListEvent.INDEX_CHANGE, hostRegionChange, false, 0, true);
+			
+			if (lxOptions.region != null){
+				var regionID:int = int(lxOptions.region) - 1;
+				this.hostClip.regionClip.setSelectedIndex(regionID);
+			}
 			
 			// Create Min dropdown
 			this.hostClip.maxClip = replaceWithValveComponent(this.hostClip.maxClip, "ComboBoxSkinned", true);
@@ -1249,6 +1255,13 @@
 			this.hostClip.mapNameClip.setDataProvider(this.gmiToProvider[gmi]);
 			this.hostClip.mapNameClip.setSelectedIndex(0);
 			// Lobbyclip too
+		}
+		
+		private function hostRegionChange(event:ListEvent){
+			var regionID:String = String(this.hostClip.regionClip.menuList.dataProvider[this.hostClip.regionClip.selectedIndex].data);
+			
+			lxOptions.region = regionID;
+			Globals.instance.GameInterface.SaveKVFile(lxOptions, 'resource/flash3/options.kv', 'Options');
 		}
 		
 		public function lobbyModeChange(event:ListEvent){

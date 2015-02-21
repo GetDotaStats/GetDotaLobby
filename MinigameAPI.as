@@ -158,8 +158,8 @@
 			var msg:Object = {minigameID:minigameID, leaderboard:leaderboard, value:value, userID32:uid, userName:username, type:"HIGHSCORE"};
 			var encodedJSON:String = GetDotaLobby.encode(msg);
 			log("Leaderboard message: " + encodedJSON);
-			msg["hmac"] = SHA1.hash(salt + encodedJSON);
-			encodedJSON = GetDotaLobby.encode(msg);
+			var hmac:String = SHA1.hash(salt + encodedJSON);
+			encodedJSON = encodedJSON.substr(0, encodedJSON.length - 1) + ",\"hmac\":\"" + hmac + "\"}"
 
 			var socket:Socket = new Socket();
 
