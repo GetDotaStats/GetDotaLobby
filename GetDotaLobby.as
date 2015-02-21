@@ -60,7 +60,7 @@
         public var globals:Object;
         public var elementName:String;
 		
-		private var version:String = "0.21";
+		private var version:String = "0.22";
 		private var DEBUG:Boolean = false;
 		private var versionChecked:Boolean = false;
 		
@@ -290,7 +290,7 @@
 				};
 				
 				socket.getDataAsync("d2mods/api/stat_user.php?uid=" + uid 
-									+ "&un=" + username
+									+ "&un=" + escape(username)
 									+ "&tg=" + gamesPlayed
 									+ "&sm=" + solo
 									+ "&tm=" + party
@@ -720,7 +720,6 @@
 				 {"label": "19", "data":19},
 				 {"label": "20", "data":20}]));
 			this.hostClip.maxClip.setSelectedIndex(8);
-			
 			
 			// Create lobby browser backdrop
 			var bgClass2 = getDefinitionByName("DB4_outerpanel") as Class;
