@@ -1,14 +1,20 @@
 forceCScriptExecution
 
-dim dotapath
-dotapath = readfromRegistry("HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\Steam App 570\InstallLocation", "")
+dim steampath
+dim steampaths(20)
+steampath = readfromRegistry("HKEY_CURRENT_USER\Software\Valve\Steam\SteamPath", "")
 
 dim oShell, appDataLocation
 Set oShell = CreateObject( "WScript.Shell" )
 appDataLocation=oShell.ExpandEnvironmentStrings("%APPDATA%")
 
-if dotapath = "" then
-	wscript.echo "Failed to find the dota directory.  If you're sure dota is installed, follow the manual installation."
+dim count
+count = 0
+steampaths(count) = steampath
+count = count + 1
+
+if steampath = "" then
+	wscript.echo "Failed to find the steam directory.  If you're sure steam is installed, follow the manual installation."
   GoSleep(3)
 	wscript.quit(1)
 end if
@@ -57,17 +63,60 @@ end with
 
 Wscript.echo "Download complete.  Finding your steam directory paths."
 
+Set objFile = objFSO.OpenTextFile(steampath & "\config\config.vdf", 1)
+
+dim line
+Set myRegExp = New RegExp
+myRegExp.IgnoreCase = True
+myRegExp.Global = True
+myRegExp.Pattern = """BaseInstallFolder_.+""[^""]+""(.*)"""
+
+i = 0
+Do Until objFile.AtEndOfStream
+	line = objFile.ReadLine
+	if InStr(line, """BaseInstallFolder_") <> 0 then
+		Set mc = myRegExp.Execute(line)
+		if mc.Count = 0 then
+			wscript.echo "Couldn't find steam base install path in config.vdf"
+		else
+			
+			Set match = mc.Item(0)
+			
+			steampaths(count) = match.SubMatches.Item(0)
+			count = count + 1
+		end if 
+	end if
+i = i + 1
+Loop
+objFile.Close
+
+dim found
+found = False
+
 Wscript.echo "INSTALLING LOBBY EXPLORER"
-if objFSO.FolderExists(dotapath) then
-  Wscript.echo "Installing in path: " & dotapath & "\dota\resource\flash3"
-  
-  Dim objShell
-  Set objShell = WScript.CreateObject ("WScript.shell")
-  objShell.run "cmd /c mkdir """ & dotapath & "\dota\resource\flash3""", 7, true
-  'objShell.run "xcopy resource """ & dotapath & "\dota\resource""" & " /Y /E ", 7, true
-  Set objShell = Nothing
-  
-  UnzipFiles objFSO.GetAbsolutePathName(dotapath & "\dota\resource\flash3"), objFSO.GetAbsolutePathName(appDataLocation & "\lx.zip")
+For each path In steampaths
+	if path <> "" then
+		if objFSO.FolderExists(path & "\steamapps\common\dota 2 beta\") then
+			found = True
+			Wscript.echo "Installing in path: " & path & "\steamapps\common\dota 2 beta\resource\flash3"
+			
+			Dim objShell
+			Set objShell = WScript.CreateObject ("WScript.shell")
+      objShell.run "cmd /c mkdir """ & path & "\steamapps\common\dota 2 beta\dota\resource\flash3""", 7, true
+			'objShell.run "xcopy resource """ & path & "\steamapps\common\dota 2 beta\dota\resource""" & " /Y /E ", 7, true
+			Set objShell = Nothing
+      
+      UnzipFiles objFSO.GetAbsolutePathName(path & "\steamapps\common\dota 2 beta\dota\resource\flash3"), objFSO.GetAbsolutePathName(appDataLocation & "\lx.zip")
+		end if 
+	end if
+Next
+
+if found then
+	Wscript.echo "DONE INSTALLING"
+else
+	Wscript.echo "Unable to find dota directory.  Installation failed."
+  GoSleep(3)
+  wscript.quit(0)
 end if 
 
 ' Write out the version.txt since the update suceeded
