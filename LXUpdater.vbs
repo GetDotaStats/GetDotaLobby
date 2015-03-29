@@ -156,9 +156,10 @@ Sub forceCScriptExecution
             Str = Str & " " & Arg
         Next
         CreateObject( "WScript.Shell" ).Run _
-            "cscript //nologo """ & _
+            "cmd /C cscript //nologo """ & _
             WScript.ScriptFullName & _
-            """ " & Str
+            """ " & Str & " && pause"
+        'CreateObject( "WScript.Shell" ).Run "cmd /C pause"
         WScript.Quit
     End If
 End Sub
