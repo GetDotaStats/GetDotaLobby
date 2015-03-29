@@ -3,6 +3,10 @@ forceCScriptExecution
 dim dotapath
 dotapath = readfromRegistry("HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\Steam App 570\InstallLocation", "")
 
+dim oShell, appDataLocation
+Set oShell = CreateObject( "WScript.Shell" )
+appDataLocation=oShell.ExpandEnvironmentStrings("%APPDATA%")
+
 if dotapath = "" then
 	wscript.echo "Failed to find the dota directory.  If you're sure dota is installed, follow the manual installation."
   GoSleep(3)
@@ -22,8 +26,8 @@ currentVer = 0.00
 
 dim verFile
 Set objFSO = CreateObject("Scripting.FileSystemObject")
-If (objFSO.FileExists("version.txt")) Then
-  Set verFile = objFSO.OpenTextFile("version.txt",1)
+If (objFSO.FileExists(appDataLocation & "\version.txt")) Then
+  Set verFile = objFSO.OpenTextFile(appDataLocation & "\version.txt",1)
   currentVer = CDbl(verFile.ReadAll())
   verFile.Close
   Set verFile = Nothing
@@ -48,7 +52,7 @@ with bStrm
     .type = 1 '//binary
     .open
     .write xHttp.responseBody
-    .savetofile "lx.zip", 2 '//overwrite
+    .savetofile appDataLocation & "\lx.zip", 2 '//overwrite
 end with
 
 Wscript.echo "Download complete.  Finding your steam directory paths."
@@ -63,11 +67,11 @@ if objFSO.FolderExists(dotapath) then
   'objShell.run "xcopy resource """ & dotapath & "\dota\resource""" & " /Y /E ", 7, true
   Set objShell = Nothing
   
-  UnzipFiles objFSO.GetAbsolutePathName(dotapath & "\dota\resource\flash3"), objFSO.GetAbsolutePathName("./lx.zip")
+  UnzipFiles objFSO.GetAbsolutePathName(dotapath & "\dota\resource\flash3"), objFSO.GetAbsolutePathName(appDataLocation & "\lx.zip")
 end if 
 
 ' Write out the version.txt since the update suceeded
-Set verFile = objFSO.OpenTextFile("version.txt",2,true)
+Set verFile = objFSO.OpenTextFile(appDataLocation & "\version.txt",2,true)
 verFile.WriteLine(latestVer)
 verFile.Close
 Set verFile = Nothing
