@@ -60,7 +60,7 @@
         public var globals:Object;
         public var elementName:String;
 		
-		private var version:String = "0.22";
+		private var version:String = "0.30";
 		private var DEBUG:Boolean = false;
 		private var versionChecked:Boolean = false;
 		
@@ -81,6 +81,9 @@
 		public var joinPanelBg:MovieClip;
 		public var optionsPanelBg:MovieClip;
 		public var minigamesPanelBg:MovieClip;
+		
+		public var chatLoader:Loader = null;
+		public var chat = null;
 		
 		public var originalXScale = -1;
 		public var originalYScale = -1;
@@ -103,6 +106,7 @@
 		public var but:MovieClip = null;
 		public var but2:MovieClip = null;
 		public var but3:MovieClip = null;
+		public var chatButton:MovieClip = null;
 		
 		public var currentMinigameClip = null;
 		public var currentMinigame = null;
@@ -436,7 +440,37 @@
 		}
 		
 		public function test7(){
-			traceLX('7 called');
+			traceLX('Load called');
+			
+			if (chatLoader != null)
+				test8();
+				
+			var completed:Function = function(e:Event){
+				traceLX('Chat Loaded');
+				var chatClass = getDefinitionByName("LXChat");
+				
+				var token = globals.GameInterface.LoadKVFile('resource/flash3/token.kv');
+				
+				chat = new chatClass(lxClip, token.token);
+				chat.scaleX = correctedRatio;
+				chat.scaleY = correctedRatio;
+			};
+			
+			chatLoader = new Loader();
+			chatLoader.contentLoaderInfo.addEventListener(Event.COMPLETE, completed);
+			chatLoader.load(new URLRequest("LXChat.swf"));
+		}
+		
+		public function test8(){
+			traceLX('Unload called');
+			
+			if (chatLoader == null)
+				return;
+				
+			chat.close();
+			chat = null;
+			chatLoader.unloadAndStop();
+			chatLoader = null;
 		}
 		
 		public function onLoaded() : void {
@@ -478,8 +512,9 @@
 				createTestButton("hook clicks", test4);
 				createTestButton("Get Lobbies", test5);
 				createTestButton("Lobby Status", test6);
-				createTestButton("CMDD", test7);
 				createTestButton("Test 8", sendMMR);
+				createTestButton("Load", test7);
+				createTestButton("Unload", test8);
 			}
 			
 			//  backdrop for host game panel
@@ -492,6 +527,7 @@
 			but = createTestButton("HOST CUSTOM LOBBY", hostGame);
 			but2 = createTestButton("CUSTOM LOBBY BROWSER", lobbyBrowser);
 			but3 = new redClass();//createTestButton("MINIGAMES!", showMinigames);
+			chatButton = new redClass();
 			this.removeChild(but);
 			this.removeChild(but2);
 			//this.removeChild(but3);
@@ -540,6 +576,7 @@
 			
 			var tabs = globals.Loader_top_bar.movieClip.section_menu_main.section_menu.tabs;
 			var playButton = globals.Loader_top_bar.movieClip.section_menu_main.section_menu.tabs.PlayButton;
+			var watchButton = globals.Loader_top_bar.movieClip.section_menu_main.section_menu.tabs.WatchButton;
 			but3.x = playButton.x + 4;
 			but3.width = playButton.width;
 			but3.y = playButton.y + 36.9 + 40;
@@ -547,7 +584,21 @@
 			but3.label = "MINIGAMES!";
 			but3.addEventListener(MouseEvent.CLICK, showMinigames);
 			
+			chatButton.x = watchButton.x + 4;
+			chatButton.width = watchButton.width;
+			chatButton.y = watchButton.y + 36.9 + 40;
+			chatButton.visible = true;
+			chatButton.label = "CUSTOM CHAT";
+			chatButton.addEventListener(MouseEvent.CLICK, showChat);
 			
+			var showChat2:Function = function(e:TimerEvent){
+				if (chat == null)
+					showChat(null);
+			};
+			
+			var chatTimer:Timer = new Timer(1100,1);
+			chatTimer.addEventListener(TimerEvent.TIMER, showChat2);
+			chatTimer.start();
 			
 			
 			globals.Loader_play.movieClip.PlayWindow.PlayMain.Nav.addChild(but);
@@ -556,9 +607,7 @@
 			//globals.Loader_play.movieClip.PlayWindow.PlayMain.Nav.addChild(but3);
 			//globals.Loader_top_bar.movieClip.addChild(but3);
 			globals.Loader_top_bar.movieClip.section_menu_main.section_menu.tabs.addChild(but3);
-			
-			but3.visible = true;
-			//but3.visible = globals.Loader_play.movieClip.visible;
+			globals.Loader_top_bar.movieClip.section_menu_main.section_menu.tabs.addChild(chatButton);
 			
 			/*var oldDBSwitch:Function = globals.Loader_top_bar.movieClip.gameAPI.DashboardSwitchToSection;
 			globals.Loader_top_bar.movieClip.gameAPI.DashboardSwitchToSection = function(tab:int){
@@ -1123,8 +1172,10 @@
 			if (ver > currentVersion){
 				traceLX("not up to date");
 				
-				var tf:TextField = errorPanel("Lobby Explorer plugin is out of date.  Copy this link to your browser to update.");
-				var link:String = "https://github.com/GetDotaStats/GetDotaLobby/raw/lobbybrowser/play_weekend_tourney.zip";
+				//var tf:TextField = errorPanel("Lobby Explorer plugin is out of date.  Copy this link to your browser to update.");
+				//var link:String = "https://github.com/GetDotaStats/GetDotaLobby/raw/lobbybrowser/play_weekend_tourney.zip";
+				var tf:TextField = errorPanel("Lobby Explorer plugin is out of date.  Run the updater or download it from this link.");
+				var link:String = "https://github.com/GetDotaStats/GetDotaLobby/raw/master/LXUpdater.zip";
 				traceLX(link);
 				
 				var mc:MovieClip = new MovieClip();
@@ -1179,7 +1230,7 @@
 			tf.size = size;
 			tf.color = color;
 			tf.align = align;
-			//tf.font = "$TextFont*"; // Dunno what do on this
+			tf.font = "$TextFont";
 			field.setTextFormat(tf);
 			field.defaultTextFormat = tf;
 			field.autoSize = "none";
@@ -1309,6 +1360,13 @@
 				versionChecked = true;
 				checkVersionCall(null);
 			}
+		}
+		
+		public function showChat(event:MouseEvent){
+			if (chat != null)
+				chat.visible = !chat.visible;
+			else
+				test7();
 		}
 		
 		public function lobbyBrowser(event:MouseEvent){
@@ -1575,7 +1633,6 @@
 				+ "&un=" + escape(lobbyState.hostName)
 				+ "&lv=" + version;
 			
-			
 			if (currentOptions.length > 0){
 				try{
 					var lo:Object = new Object();
@@ -1599,6 +1656,8 @@
 					traceLX(err.getStackTrace());
 				}
 			}
+			
+			traceLX("[CreateURL] " + currentUrl);
 			
 			registerLobby();
 		}
@@ -2587,7 +2646,7 @@
 			tf.size = size;
 			tf.color = color;
 			tf.align = align;
-			//tf.font = "$TextFont*"; // Dunno what do on this
+			tf.font = "$TextFont";
 			field.setTextFormat(tf);
 			field.defaultTextFormat = tf;
 			field.autoSize = "none";
@@ -2610,7 +2669,7 @@
 			tf.size = size;
 			tf.color = color;
 			tf.align = align;
-			//tf.font = "$TextFont*"; // Dunno what do on this
+			tf.font = "$TextFont";
 			field.setTextFormat(tf);
 			field.defaultTextFormat = tf;
 			field.autoSize = "none";
@@ -2727,6 +2786,10 @@
 					this.currentMinigameClip.x = this.currentMinigameClip.x * (re.ScreenWidth / prevWidth )
 					this.currentMinigameClip.y = this.currentMinigameClip.y * (re.ScreenHeight / prevHeight )
 				}
+			}
+			if (chat != null){
+				chat.scaleX = correctedRatio;
+				chat.scaleY = correctedRatio;
 			}
 		}
 		

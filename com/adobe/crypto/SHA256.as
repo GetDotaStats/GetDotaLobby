@@ -1,4 +1,4 @@
-/*
+﻿/*
   Copyright (c) 2008, Adobe Systems Incorporated
   All rights reserved.
 
@@ -34,7 +34,6 @@ package com.adobe.crypto
 {
 	import com.adobe.utils.IntUtil;
 	import flash.utils.ByteArray;
-	import mx.utils.Base64Encoder;
 	
 	/**
 	 * The SHA-256 algorithm
@@ -88,38 +87,6 @@ package com.adobe.crypto
 					+ IntUtil.toHex( byteArray.readInt(), true )
 					+ IntUtil.toHex( byteArray.readInt(), true )
 					+ IntUtil.toHex( byteArray.readInt(), true );
-		}
-		
-		/**
-		 *  Performs the SHA256 hash algorithm on a string, then does
-		 *  Base64 encoding on the result.
-		 *
-		 *  @param s		The string to hash
-		 *  @return			The base64 encoded hash value of s
-		 *  @langversion	ActionScript 3.0
-		 *  @playerversion	9.0
-		 *  @tiptext
-		 */
-		public static function hashToBase64( s:String ):String
-		{
-			var blocks:Array = createBlocksFromString( s );
-			var byteArray:ByteArray = hashBlocks(blocks);
-
-			// ByteArray.toString() returns the contents as a UTF-8 string,
-			// which we can't use because certain byte sequences might trigger
-			// a UTF-8 conversion.  Instead, we convert the bytes to characters
-			// one by one.
-			var charsInByteArray:String = "";
-			byteArray.position = 0;
-			for (var j:int = 0; j < byteArray.length; j++)
-			{
-				var byte:uint = byteArray.readUnsignedByte();
-				charsInByteArray += String.fromCharCode(byte);
-			}
-
-			var encoder:Base64Encoder = new Base64Encoder();
-			encoder.encode(charsInByteArray);
-			return encoder.flush();
 		}
 		
 		private static function hashBlocks( blocks:Array ):ByteArray {

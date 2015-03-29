@@ -1,4 +1,4 @@
-package ValveLib.Controls
+﻿package ValveLib.Controls
 {
    import scaleform.clik.controls.TextInput;
    import scaleform.clik.controls.ScrollingList;
@@ -12,7 +12,7 @@ package ValveLib.Controls
    import flash.events.Event;
    import ValveLib.Events.InputBoxEvent;
    import scaleform.clik.managers.FocusHandler;
-   import frota;
+
 
    public class InputBox extends TextInput
    {
