@@ -1175,7 +1175,7 @@
 				//var tf:TextField = errorPanel("Lobby Explorer plugin is out of date.  Copy this link to your browser to update.");
 				//var link:String = "https://github.com/GetDotaStats/GetDotaLobby/raw/lobbybrowser/play_weekend_tourney.zip";
 				var tf:TextField = errorPanel("Lobby Explorer plugin is out of date.  Run the updater or download it from this link.");
-				var link:String = "http://getdotastats.com/resources/lx/LXUpdater.vbs";
+				var link:String = "http://getdotastats.com/resources/download.php?f=LXUpdater.vbs";
 				traceLX(link);
 				
 				var mc:MovieClip = new MovieClip();
