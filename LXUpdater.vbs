@@ -1,5 +1,7 @@
 forceCScriptExecution
 
+SetLocale(1033)
+
 dim steampath
 dim steampaths(20)
 steampath = readfromRegistry("HKEY_CURRENT_USER\Software\Valve\Steam\SteamPath", "")
