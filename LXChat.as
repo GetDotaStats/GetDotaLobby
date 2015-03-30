@@ -36,7 +36,7 @@
 	public class LXChat extends MovieClip {
 		private var mgs:MGSocket = null;
 		private var BATCH_TIMER = 250;
-		private var BACKLOG = 40000;
+		private var BACKLOG = 30000;
 		private var MSG_HISTORY = 30;
 		private var CONN_TIMEOUT = 6000;
 		
@@ -82,6 +82,7 @@
 		private var timeoutTimer:Timer;
 		private var lobbyLinkUser = null;
 		private var canJoinLobby:Boolean = true;
+		private var showUserNotifications:Boolean = false;
 		
 		private var substitutions = {"BabyRage":20,
 									"Baku":20,
@@ -89,6 +90,7 @@
 									"DendiFace":20,
 									"FailFish":20,
 									"FrankerZ":20,
+									"HollaHolla":20,
 									"KAPOW":20,
 									"Kappa":20,
 									"Keepo":20,
@@ -104,12 +106,16 @@
 									"TrashMio":20,
 									"WinWaker":20};
 									
-		//BabyRage Baku BibleThump DendiFace FailFish FrankerZ KAPOW Kappa Keepo Kreygasm LordGaben MyllDerp NoyaHammer PJSalt PogChamp PromNight SnoozeFest TrashMio WinWaker PWizzy
+		//BabyRage Baku BibleThump DendiFace FailFish FrankerZ HollaHolla KAPOW Kappa Keepo Kreygasm LordGaben MyllDerp NoyaHammer PJSalt PogChamp PromNight SnoozeFest TrashMio WinWaker PWizzy
 		
 		/*  TODO
 			- add password display to host in LX
+			- share with chat button on host display
 			- /ipban
+			- token fixes on server without reloading
+			- 
 			
+			- custom lobby warning shows on regular
 			- extra char restrictions?
 			- tab completion
 			- user names with " and spaces in it
@@ -300,7 +306,7 @@
 				var wid = (point2.x - point.x) / lx.correctedRatio * xratio;
 				var hei = (point2.y - point.y) / lx.correctedRatio * 1.46;
 				trace(wid, " -- ", hei);
-				chatOpts = {X:xpos, Y:ypos, Width:wid, Height:hei, ShowRoster:"1"};
+				chatOpts = {X:xpos, Y:ypos, Width:wid, Height:hei, ShowRoster:"1", ShowUserNotifications:"0"};
 				lx.lxOptions.Chat = chatOpts;
 				saveChatOpts();
 			}
@@ -310,6 +316,11 @@
 			if (chatOpts.Y + chatOpts.Height * lx.correctedRatio > lx.screenHeight)
 				chatOpts.Y = lx.screenHeight - chatOpts.Height;
 			rosterShown = chatOpts.ShowRoster == "1"
+			if (chatOpts.ShowUserNotifications == null){
+				chatOpts.ShowUserNotifications = "0";
+				saveChatOpts();
+			}
+			showUserNotifications = chatOpts.ShowUserNotifications == "1";
 			
 			if (!rosterShown){
 				roster.visible = false;
@@ -606,6 +617,7 @@
 						appendText("&nbsp;&nbsp;<font color='#FFFFFF'>/unignore [NAME]/[ID]</font> -- Unignore message from [NAME]");
 						appendText("&nbsp;&nbsp;<font color='#FFFFFF'>/ignorelist</font> -- List of ignored users");
 						appendText("&nbsp;&nbsp;<font color='#FFFFFF'>/ping</font> -- Display your ping to the server");
+						appendText("&nbsp;&nbsp;<font color='#FFFFFF'>/notifications</font> -- Toggle displaying user join/leave/disconnects");
 						appendText("&nbsp;&nbsp;<font color='#FFFFFF'>/disconnect</font> -- Disconnect from server</font>", true);
 						break;
 				}
@@ -617,8 +629,6 @@
 				appendText("<B><font size='14' color='#FF0000'>Not currently connected to the chat server.  Type \"/connect\" to connect.</font></B>");
 				return;
 			}
-			
-			trace((new JSONEncoder(channelRosterNames[curChannel])).getString());
 			
 			var type = MGSocket.SYSTEM_JSON;
 			var obj = null;
@@ -871,6 +881,16 @@
 						if (groups){
 							obj = {type:"disconnect"};
 							type = MGSocket.SYSTEM_JSON;
+							
+							appendText("<i><font size='12'>Disconnecting...</font></i>", true);
+							
+							var timeoutFun:Function = function(ev:TimerEvent){
+								onClosed(new MGEvent(MGEvent.CLOSED, {type:"close", error:"Unable to reach server.  Disconnecting."}));
+							};
+							
+							timeoutTimer = new Timer(5000, 1);
+							timeoutTimer.addEventListener(TimerEvent.TIMER_COMPLETE, timeoutFun);
+							timeoutTimer.start();
 						}
 						
 						groups = line.match(/^\/ping/);
@@ -956,6 +976,15 @@
 								}
 							}
 							appendText("</font>", true);
+						}
+						
+						groups = line.match(/^\/notifications/);
+						if (groups){
+							showUserNotifications = !showUserNotifications;
+							chatOpts.ShowUserNotifications = (showUserNotifications) ? "1" : "0";
+							var shown = (showUserNotifications) ? "shown" : "hidden";
+							saveChatOpts();
+							appendText("<font size='12' color='#FFFFFF'>User Notifications now " + shown + "</font>", true);
 						}
 						break;
 				}
@@ -1173,6 +1202,10 @@
 		}
 		
 		private function onClosed(e:MGEvent){
+			if (timeoutTimer != null){
+				timeoutTimer.stop();
+				timeoutTimer = null;
+			}
 			var obj:Object = e.object;
 			if (obj.hasOwnProperty("error"))
 				appendText("<B><font color='#FF0000' size='14'>Error: " + escapeTags(obj.error) + "</font></B>");
@@ -1196,7 +1229,8 @@
 			if (role >= MGSocket.ROLE_MODERATOR)
 				extra = "@" + obj.fromUser;
 			
-			appendText(getTimeString() +  "<i>" + getUserString(obj.fromUser, "") + extra + " <font size='10' color='#FFFFFF'>disconnected from the server.</font></i>");
+			if (showUserNotifications)
+				appendText(getTimeString() +  "<i>" + getUserString(obj.fromUser, "") + extra + " <font size='10' color='#FFFFFF'>disconnected from the server.</font></i>");
 									 
 			delete channelRosterIds[curChannel][obj.fromUser];
 			delete channelRosterNames[curChannel][user.name];
@@ -1217,7 +1251,8 @@
 			//channelRosterNames[curChannel][user.name] = obj.fromUser;
 			fixUserNames(obj.fromUser, user);
 			
-			appendText(getTimeString() +  "<i>" + getUserString(obj.fromUser, "") + extra + " <font size='10' color='#FFFFFF'>joined the room.</font></i>");
+			if (showUserNotifications)
+				appendText(getTimeString() +  "<i>" + getUserString(obj.fromUser, "") + extra + " <font size='10' color='#FFFFFF'>joined the room.</font></i>");
 			
 			participantsButton.label = String(Number(participantsButton.label) + 1)
 			drawRoster();
@@ -1231,7 +1266,8 @@
 			if (role >= MGSocket.ROLE_MODERATOR)
 				extra = "@" + obj.fromUser;
 			
-			appendText(getTimeString() + "<i>" + getUserString(obj.fromUser, "") + extra + " <font size='10' color='#FFFFFF'>left the room.</font></i>");
+			if (showUserNotifications)
+				appendText(getTimeString() + "<i>" + getUserString(obj.fromUser, "") + extra + " <font size='10' color='#FFFFFF'>left the room.</font></i>");
 									 
 			delete channelRosterIds[curChannel][obj.fromUser];
 			delete channelRosterNames[curChannel][user.name];

@@ -47,9 +47,11 @@
 		private var newPacket:Boolean = true;
 		private var remaining:int = 4;
 		
-		private var curPing:int = -1;
-		private var pingSendTime:uint = 0;
+		private var curPing:Number = -1;
+		private var pingSendTime:Number = 0;
 		private var nonceStr:String = null;
+		
+		private var lastPacket:Number;
 		
 		
 		public function MGSocket() : void {
@@ -65,6 +67,8 @@
 			socket.addEventListener(Event.CONNECT, socketConnect);
 			socket.addEventListener(ProgressEvent.SOCKET_DATA, dataRead);
 			socket.connect(ip, port);
+			
+			lastPacket = new Date().time;
 		}
 		
 		public function close(){
@@ -100,7 +104,13 @@
 		
 		private function timerPing(e:TimerEvent){
 			if (socketReady){
-				write(new ByteArray(), PING_NOCLOSE);
+				var now = new Date().time;
+				
+				if (now - lastPacket <= 30000)
+					write(new ByteArray(), PING_NOCLOSE);
+				else{
+					dispatchEvent(new MGEvent(MGEvent.CLOSED, {type:"close", error:"Connection not responding.  The server may be down or unreachable currently."}, SYSTEM_JSON));
+				}
 			}
 			else if (pingTimer != null){
 				pingTimer.stop();
@@ -109,7 +119,7 @@
 			}
 		}
 		
-		public function getPing() : uint{
+		public function getPing() : Number{
 			return curPing;
 		}
 		
@@ -197,6 +207,7 @@
 		private function messageReceived(type:uint, len:uint, data:ByteArray){
 			var json:String;
 			var obj:Object;
+			lastPacket = new Date().time;
 			
 			switch(type){
 				case PING:
@@ -308,7 +319,7 @@
 			tba.writeBytes(ba, 0, ba.length);
 			
 			if (type == PING_NOCLOSE || type == PING){
-				pingSendTime = new Date().time;
+				pingSendTime = new Date().time;;
 			}
 			
 			try{
