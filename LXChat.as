@@ -1366,16 +1366,16 @@
 				var user = channelRosterIds[curChannel][id];
 				switch(user.role){
 					case MGSocket.ROLE_USER:
-						users += "<font color='#FFFFFF' size='10'><A HREF='event:a" + id + "'><B>" + user.name + "</B></A></font>\n";
+						users += "<font color='#FFFFFF' size='10'><A HREF='event:a" + id + "'><B>" + escapeTags(user.name) + "</B></A></font>\n";
 						break;
 					case MGSocket.ROLE_MODERATOR:
-						moderators += "<font color='#33CC33' size='10'><A HREF='event:a" + id + "'><B>" + user.name + "</B></A></font>\n";
+						moderators += "<font color='#33CC33' size='10'><A HREF='event:a" + id + "'><B>" + escapeTags(user.name) + "</B></A></font>\n";
 						break;
 					case MGSocket.ROLE_OWNER:
-						owners += "<font color='#8855EE' size='10'><A HREF='event:a" + id + "'><B>" + user.name + "</B></A></font>\n";
+						owners += "<font color='#8855EE' size='10'><A HREF='event:a" + id + "'><B>" + escapeTags(user.name) + "</B></A></font>\n";
 						break;
 					case MGSocket.ROLE_ADMIN:
-						admins += "<font color='#FFD700' size='10'><A HREF='event:a" + id + "'><B>" + user.name + "</B></A></font>\n";
+						admins += "<font color='#FFD700' size='10'><A HREF='event:a" + id + "'><B>" + escapeTags(user.name) + "</B></A></font>\n";
 						break;
 				}
 			}
