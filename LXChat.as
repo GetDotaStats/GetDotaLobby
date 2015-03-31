@@ -67,6 +67,8 @@
 		private var chatOpts:Object;
 		private var asdf:int = 1128;
 		
+		private var connectionIP:String = "96.244.208.108";
+		//private var connectionIP:String = "192.168.222.3";
 		private var curChannel:String = "home";
 		private var id = null;
 		private var userName:String = null;
@@ -102,23 +104,25 @@
 									"PogChamp":20,
 									"PromNight":20,
 									"PWizzy":20,
+									"RoyMander":20,
 									"SnoozeFest":20,
+									"TeamGomez":20,
 									"TrashMio":20,
 									"WinWaker":20};
 									
-		//BabyRage Baku BibleThump DendiFace FailFish FrankerZ HollaHolla KAPOW Kappa Keepo Kreygasm LordGaben MyllDerp NoyaHammer PJSalt PogChamp PromNight SnoozeFest TrashMio WinWaker PWizzy
+		//BabyRage Baku BibleThump DendiFace FailFish FrankerZ HollaHolla KAPOW Kappa Keepo Kreygasm LordGaben MyllDerp NoyaHammer PJSalt PogChamp PromNight RoyMander SnoozeFest TeamGomez TrashMio WinWaker PWizzy
 		
 		/*  TODO
 			- add password display to host in LX
 			- share with chat button on host display
 			- /ipban
-			- token fixes on server without reloading
-			- 
+			-x role passing on join after auth
+			- refire /connect on focus
+			- ban logging?
 			
-			- custom lobby warning shows on regular
+			- custom lobby warning shows on regular games, shouldn't
 			- extra char restrictions?
 			- tab completion
-			- user names with " and spaces in it
 		*/
 		
 		public function LXChat(lx:*, authToken:String = null) {
@@ -189,7 +193,7 @@
 			input.textField.setTextFormat(tf);
 			input.textField.defaultTextFormat = tf;
 			//input.textField.autoSize = "none";
-			input.maxChars = 500;
+			input.maxChars = 400;
 			//input.textField.type = TextFieldType.INPUT;
 			
 			TextFieldEx.setVerticalAlign(input.textField, TextFieldEx.VALIGN_CENTER);
@@ -507,8 +511,9 @@
 				var uid = e.text.substr(1);
 				var user = channelRosterIds[curChannel][uid];
 				if (user != null){
-					if (user.name.indexOf(" ") >= 0)
-						input.text += replace + "\"" + user.name + "\" ";
+					if (user.name.indexOf(" ") >= 0){
+						input.text += replace + "\"" + user.name.replace(/\\/g, "\\\\").replace(/"/g, "\\\"") + "\" ";
+					}
 					else
 						input.text += replace + user.name + " ";
 					fixFormat(null);
@@ -602,12 +607,15 @@
 					case MGSocket.ROLE_OWNER:
 						appendText("&nbsp;&nbsp;<font color='#FFFFFF'>/mod [NAME]</font> -- Change [NAME] to moderator");
 						appendText("&nbsp;&nbsp;<font color='#FFFFFF'>/unmod [NAME]</font> -- Remove moderator from [NAME]");
+						appendText("&nbsp;&nbsp;<font color='#FFFFFF'>/ipban [NAME] [REASON]</font> -- IP BAN [NAME] with [REASON]");
+						appendText("&nbsp;&nbsp;<font color='#FFFFFF'>/unipban [INDEX]</font> -- Lift the IP Ban given by the IP Ban List [INDEX]");
+						appendText("&nbsp;&nbsp;<font color='#FFFFFF'>/ipbanlist</font> -- List of IP bans");
 					case MGSocket.ROLE_MODERATOR:
 						appendText("&nbsp;&nbsp;<font color='#FFFFFF'>/mute [NAME] [TIME] [REASON]</font> -- Mute [NAME] for [TIME] (1m,8h,1d,etc) with [REASON]");
 						appendText("&nbsp;&nbsp;<font color='#FFFFFF'>/unmute [NAME]/[ID]</font> -- Unmute user with [NAME] or [ID]");
 						appendText("&nbsp;&nbsp;<font color='#FFFFFF'>/ban [NAME] [TIME] [REASON]</font> -- Ban [NAME] for [TIME] (1m,8h,1d,etc) with [REASON]");
 						appendText("&nbsp;&nbsp;<font color='#FFFFFF'>/unban [NAME]/[ID]</font> -- Unban user with [NAME] or [ID]");
-						appendText("&nbsp;&nbsp;<font color='#FFFFFF'>/kick [NAME] [REASON]</font> -- Kick [NAME] for [TIME] (1m,8h,1d,etc) with [REASON]");
+						appendText("&nbsp;&nbsp;<font color='#FFFFFF'>/kick [NAME] [REASON]</font> -- Kick [NAME] with [REASON]");
 						appendText("&nbsp;&nbsp;<font color='#FFFFFF'>/banlist</font> -- List of bans");
 						appendText("&nbsp;&nbsp;<font color='#FFFFFF'>/mutelist</font> -- List of mutes");
 					default:
@@ -651,12 +659,12 @@
 							user = ret.user;
 							uid = channelRosterNames[curChannel][user];
 							
-							if (!uid){
+							if (uid == null){
 								uid = user;
-							}
-							if (!Number(uid)){
-								appendText("<font size='12' color='#FFFFFF'>No user found.</font>", true);
-								return;
+								if (!Number(uid)){
+									appendText("<font size='12' color='#FFFFFF'>No user found.</font>", true);
+									return;
+								}
 							}
 							
 							obj = {type:"ownUser", channel:curChannel, fromUser:id, user:Number(uid)};
@@ -670,12 +678,12 @@
 							user = ret.user;
 							uid = channelRosterNames[curChannel][user];
 							
-							if (!uid){
+							if (uid == null){
 								uid = user;
-							}
-							if (!Number(uid)){
-								appendText("<font size='12' color='#FFFFFF'>No user found.</font>", true);
-								return;
+								if (!Number(uid)){
+									appendText("<font size='12' color='#FFFFFF'>No user found.</font>", true);
+									return;
+								}
 							}
 							
 							obj = {type:"unownUser", channel:curChannel, fromUser:id, user:Number(uid)};
@@ -689,12 +697,12 @@
 							user = ret.user;
 							uid = channelRosterNames[curChannel][user];
 							
-							if (!uid){
+							if (uid == null){
 								uid = user;
-							}
-							if (!Number(uid)){
-								appendText("<font size='12' color='#FFFFFF'>No user found.</font>", true);
-								return;
+								if (!Number(uid)){
+									appendText("<font size='12' color='#FFFFFF'>No user found.</font>", true);
+									return;
+								}
 							}
 							
 							obj = {type:"modUser", channel:curChannel, fromUser:id, user:Number(uid)};
@@ -708,15 +716,57 @@
 							user = ret.user;
 							uid = channelRosterNames[curChannel][user];
 							
-							if (!uid){
+							if (uid == null){
 								uid = user;
-							}
-							if (!Number(uid)){
-								appendText("<font size='12' color='#FFFFFF'>No user found.</font>", true);
-								return;
+								if (!Number(uid)){
+									appendText("<font size='12' color='#FFFFFF'>No user found.</font>", true);
+									return;
+								}
 							}
 							
 							obj = {type:"unmodUser", channel:curChannel, fromUser:id, user:Number(uid)};
+							type = MGSocket.GAME_JSON;
+						}
+						
+						groups = line.match(/^\/ipban (.+)/);
+						if (groups && line.length >= 8){
+							str = line.substring(7);
+							ret = splitInputMessage(str);
+							user = ret.user;
+							msg = ret.msg;
+							uid = channelRosterNames[curChannel][user];
+							
+							if (uid == null){
+								uid = user;
+								if (!Number(uid)){
+									appendText("<font size='12' color='#FFFFFF'>No user found.</font>", true);
+									return;
+								}
+							}
+							
+							obj = {type:"ipbanUser", fromUser:id, user:Number(uid), reason:msg};
+							type = MGSocket.GAME_JSON;
+						}
+						
+						groups = line.match(/^\/unipban (.+)/);
+						if (groups && line.length >= 10){
+							str = line.substring(9);
+							//ret = splitInputMessage(str);
+							//user = ret.user;
+							//uid = channelRosterNames[curChannel][user];
+							
+							if (!Number(str)){
+								appendText("<font size='12' color='#FFFFFF'>No index given.</font>", true);
+								return;
+							}
+							
+							obj = {type:"unipbanUser", fromUser:id, index:Number(str)};
+							type = MGSocket.GAME_JSON;
+						}
+						
+						groups = line.match(/^\/ipbanlist/);
+						if (groups){
+							obj = {type:"ipbanList", fromUser:id};
 							type = MGSocket.GAME_JSON;
 						}
 					case MGSocket.ROLE_MODERATOR:
@@ -743,10 +793,14 @@
 							}
 							
 							
-							if (!uid){
-								appendText("<font size='12' color='#FFFFFF'>No user found.</font>", true);
-								return;
+							if (uid == null){
+								uid = user;
+								if (!Number(uid) || channelRosterIds[curChannel][user] == null){
+									appendText("<font size='12' color='#FFFFFF'>No user found.</font>", true);
+									return;
+								}
 							}
+							
 							
 							obj = {type:"muteUser", fromUser:id, user:Number(uid), time:time, reason:msg};
 							type = MGSocket.GAME_JSON;
@@ -759,12 +813,12 @@
 							user = ret.user;
 							uid = channelRosterNames[curChannel][user];
 							
-							if (!uid){
+							if (uid == null){
 								uid = user;
-							}
-							if (!Number(uid)){
-								appendText("<font size='12' color='#FFFFFF'>No user found.</font>", true);
-								return;
+								if (!Number(uid)){
+									appendText("<font size='12' color='#FFFFFF'>No user found.</font>", true);
+									return;
+								}
 							}
 							
 							obj = {type:"unmuteUser", fromUser:id, user:Number(uid)};
@@ -794,9 +848,12 @@
 							}
 							
 							
-							if (!uid){
-								appendText("<font size='12' color='#FFFFFF'>No user found.</font>", true);
-								return;
+							if (uid == null){
+								uid = user;
+								if (!Number(uid) || channelRosterIds[curChannel][user] == null){
+									appendText("<font size='12' color='#FFFFFF'>No user found.</font>", true);
+									return;
+								}
 							}
 							
 							obj = {type:"banUser", fromUser:id, user:Number(uid), time:time, reason:msg};
@@ -810,10 +867,10 @@
 							user = ret.user;
 							uid = channelRosterNames[curChannel][user];
 							
-							if (!uid){
+							if (uid == null){
 								uid = user;
 							}
-							if (!Number(uid)){
+							else if (!Number(uid)){
 								appendText("<font size='12' color='#FFFFFF'>No user found.</font>", true);
 								return;
 							}
@@ -830,9 +887,12 @@
 							msg = ret.msg;
 							uid = channelRosterNames[curChannel][user];
 							
-							if (!uid){
-								appendText("<font size='12' color='#FFFFFF'>No user found.</font>", true);
-								return;
+							if (uid == null){
+								uid = user;
+								if (!Number(uid)){
+									appendText("<font size='12' color='#FFFFFF'>No user found.</font>", true);
+									return;
+								}
 							}
 							
 							obj = {type:"kickUser", fromUser:id, user:Number(uid), reason:msg};
@@ -907,7 +967,7 @@
 							user = ret.user;
 							uid = channelRosterNames[curChannel][user];
 							
-							if (!uid){
+							if (uid == null){
 								appendText("<font size='12' color='#FFFFFF'>No user found.</font>", true);
 								return;
 							}
@@ -926,7 +986,7 @@
 							if (!chatOpts.hasOwnProperty("Ignored"))
 								chatOpts.Ignored = {};
 								
-							if (!uid){
+							if (uid == null){
 								appendText("<font size='12' color='#FFFFFF'>No user found to ignore.</font>", true);
 								return;
 							}
@@ -991,9 +1051,10 @@
 				
 				/*groups = line.match(/^\/test (.+)/);
 				if (groups){
-					trace('(A:' + Math.floor(Math.random() * 36) + ':' + groups[1] + ':100:7)');
-					trace(new Date().time);
-					appendText('<IMG SRC="img://(A:36:' + groups[1] + ':100:0)resource/flash3/images/emoticons/dchorse.png" WIDTH="30" HEIGHT="30" ALIGN="baseline"/>');
+					str = line.substring(6);
+					ret = splitInputMessage(str);
+					trace((new JSONEncoder(ret)).getString());
+					//appendText('<IMG SRC="img://(A:36:' + groups[1] + ':100:0)resource/flash3/images/emoticons/dchorse.png" WIDTH="30" HEIGHT="30" ALIGN="baseline"/>');
 					//appendText('<font size="16"><IMG SRC="img://(A:21:26816:100:0)resource/flash3/images/emoticons/sad.png" WIDTH="18" HEIGHT="18" ALIGN="baseline"></font>');
 				}*/
 				
@@ -1019,11 +1080,17 @@
 		public function connect(){
 			if (mgs != null)
 				mgs.close();
-			mgs = new MGSocket();
 			
+			this.id = int(Globals.instance.Loader_profile_mini.movieClip.ProfileMini_main.ProfileMini.Persona.steamIDNumber.text);
 			this.userName = Globals.instance.Loader_profile_mini.movieClip.ProfileMini_main.ProfileMini.Persona.Player.PlayerNameIngame.text;
 			
-			mgs.connect("96.244.208.108", 7123, id, userName, authToken);
+			if (this.id == 0){
+				appendText("<I><font color='#FFFFFF' size='14'>Unable to connect to server... Please try again.</font></I>", true);
+				return;
+			}
+			mgs = new MGSocket();			
+			
+			mgs.connect(connectionIP, 7123, id, userName, authToken);
 			authed = false;
 			role = MGSocket.ROLE_USER;
 			
@@ -1123,6 +1190,13 @@
 								   + escapeTags(obj.name.replace(/ /g, "&nbsp;")) + " <B>&lt;" + lx.lobbyRegionProvider.requestItemAt(obj.region).label + "&gt;</B>"
 								   + " by </font><b><font color='#FFFFFF' size='14'>" + escapeTags(obj.hostname.replace(/ /g, "&nbsp;")) + "</font></b></A>");
 						break;
+					case "ipbanList":
+						appendText("<font size='12' color='#FFFFFF'>&nbsp;&nbsp;IP Ban List:</font><font size='10'>");
+						for (var ipban in obj.ipbanList){
+							appendText("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" + ipban + " -- " + obj.ipbanList[ipban] + "\n");
+						}
+						appendText("</font>", true);
+						break;
 					case "banList":
 						appendText("<font size='12' color='#FFFFFF'>&nbsp;&nbsp;Ban List:</font><font size='10'>");
 						for (var ban in obj.banList){
@@ -1171,8 +1245,10 @@
 						///channel:name, user:user.ID, byUser:byUser.ID, reason:reason
 						user = channelRosterIds[curChannel][obj.user];
 						
-						appendText(getTimeString() +  "<b><font color='#E18700' size='14'>" + getUserString(obj.user, "") + " was KICKED by " + getUserString(obj.byUser, "")
-								   + ".</font></b>", true);
+						reason = (obj.reason == "") ? "" : "(" + obj.reason + ")";
+						
+						appendText(getTimeString() +  "<b><font color='#E18700' size='14'>" + getUserString(obj.user, "") + " was KICKED by " + getUserString(obj.byUser, " ")
+								   + reason + "</font></b>", true);
 						
 						delete channelRosterIds[curChannel][obj.user];
 						delete channelRosterNames[curChannel][user.name];
@@ -1518,10 +1594,48 @@
 			var replace;
 			if (str.charAt(0) == '"'){
 				// quoted name
-				user = str.substr(1, str.indexOf('"', 1) - 1);
-				msg = str.substr(str.indexOf('"', 1) + 1);
-				if (msg.charAt(0) == ' ')
-					msg = msg.substr(1);
+				var end = 1;
+				var found = false;
+				var escape = false;
+				while (end != str.length){
+					var c = str.charAt(end);
+					if (escape){
+						escape = false;
+					}
+					else if (c == "\\"){
+						escape = true;
+					}
+					else if (c == "\""){
+						found = true;
+						break;
+					}
+					end++;
+				}
+				if (!found){
+					user = str.substr(1);
+					msg = "";
+				}
+				else{					
+					user = "";
+					escape = false;
+					for (var i=1; i<end; i++){
+						var ch = str.charAt(i);
+						if (escape){
+							escape = false;
+							if (ch != "\"" && ch != "\\")
+								user += ch;
+						}
+						else if (ch == "\\"){
+							escape = true;
+							continue;
+						}
+						user += ch;
+					}
+					//user = str.substr(1, end - 1).replace(/\\/g, "\\").replace(/\\"/g, "\"");
+					msg = str.substr(end + 1);
+					if (msg.charAt(0) == ' ')
+						msg = msg.substr(1);
+				}
 				
 				replace = "\"" + user + "\" ";
 			}
@@ -1537,7 +1651,8 @@
 				
 				replace = user + " ";
 			}
-			
+
+			trace("user: " + user + " -- msg: " + msg + " -- replace: " + replace);
 			return {user:user, msg:msg, replace:replace};
 		}
 		

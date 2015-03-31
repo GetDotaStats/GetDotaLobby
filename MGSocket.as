@@ -74,9 +74,12 @@
 		public function close(){
 			socket.removeEventListener(Event.CONNECT, socketConnect);
 			socket.removeEventListener(ProgressEvent.SOCKET_DATA, dataRead);
-			socket.close();
+			try{
+				socket.close();
+			}catch(e:Error){
+				trace(e);
+			}
 			
-			socket = new Socket();
 			socketReady = false;
 			
 			if (pingTimer != null){
@@ -106,10 +109,13 @@
 			if (socketReady){
 				var now = new Date().time;
 				
-				if (now - lastPacket <= 30000)
+				if (now - lastPacket <= 40000)
 					write(new ByteArray(), PING_NOCLOSE);
 				else{
 					dispatchEvent(new MGEvent(MGEvent.CLOSED, {type:"close", error:"Connection not responding.  The server may be down or unreachable currently."}, SYSTEM_JSON));
+					pingTimer.stop();
+					pingTimer.removeEventListener(TimerEvent.TIMER, timerPing);
+					pingTimer = null;
 				}
 			}
 			else if (pingTimer != null){
