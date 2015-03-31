@@ -512,7 +512,15 @@
 				var user = channelRosterIds[curChannel][uid];
 				if (user != null){
 					if (user.name.indexOf(" ") >= 0){
-						input.text += replace + "\"" + user.name.replace(/\\/g, "\\\\").replace(/"/g, "\\\"") + "\" ";
+						var str = "";
+						for (var i=0; i<user.name.length; i++){
+							var ch = user.name.charAt(i);
+							if (ch == "\"" || ch == "\\"){
+								str += "\\";
+							}
+							str += ch;
+						}
+						input.text += replace + "\"" + str + "\" ";
 					}
 					else
 						input.text += replace + user.name + " ";
