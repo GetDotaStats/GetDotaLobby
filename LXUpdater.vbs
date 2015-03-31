@@ -53,8 +53,8 @@ Wscript.echo "Your Lobby Explorer is not up to date.  Downloading new version.  
 Set xHttp = createobject("MSXML2.ServerXMLHTTP.6.0")
 Set bStrm = createobject("Adodb.Stream")
 'xHttp.Open "GET", "https://github.com/GetDotaStats/GetDotaLobby/raw/lobbybrowser/play_weekend_tourney.zip", False
-'xHttp.Open "GET", "https://github.com/GetDotaStats/GetDotaLobby/raw/master/play_weekend_tourney.zip", False
-xHttp.Open "GET", "https://s3.amazonaws.com/gdslx/play_weekend_tourney.zip", False
+xHttp.Open "GET", "https://github.com/GetDotaStats/GetDotaLobby/raw/master/play_weekend_tourney.zip", False
+'xHttp.Open "GET", "https://s3.amazonaws.com/gdslx/play_weekend_tourney.zip", False
 xHttp.Send
 
 with bStrm
