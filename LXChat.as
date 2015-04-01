@@ -81,10 +81,12 @@
 		private var channelMessageHistory:Object = {};
 		private var messageHistoryIndex:int = 0;
 		private var batchTimer:Timer;
+		private var lastBatchTime:Number = 0;
 		private var timeoutTimer:Timer;
 		private var lobbyLinkUser = null;
 		private var canJoinLobby:Boolean = true;
 		private var showUserNotifications:Boolean = false;
+		
 		
 		private var substitutions = {"BabyRage":20,
 									"Baku":20,
@@ -100,6 +102,7 @@
 									"LordGaben":20,
 									"MyllDerp":20,
 									"NoyaHammer":20,
+									"PeonSad":20,
 									"PJSalt":20,
 									"PogChamp":20,
 									"PromNight":20,
@@ -108,20 +111,30 @@
 									"SnoozeFest":20,
 									"TeamGomez":20,
 									"TrashMio":20,
+									"UltraSin":20,
 									"WinWaker":20};
 									
-		//BabyRage Baku BibleThump DendiFace FailFish FrankerZ HollaHolla KAPOW Kappa Keepo Kreygasm LordGaben MyllDerp NoyaHammer PJSalt PogChamp PromNight RoyMander SnoozeFest TeamGomez TrashMio WinWaker PWizzy
+		//BabyRage Baku BibleThump DendiFace FailFish FrankerZ HollaHolla KAPOW Kappa Keepo Kreygasm LordGaben MyllDerp NoyaHammer PeonSad PJSalt PogChamp PromNight PWizzy RoyMander SnoozeFest TeamGomez TrashMio UltraSin WinWaker
 		
 		/*  TODO
 			- add password display to host in LX
 			- share with chat button on host display
-			- /ipban
-			-x role passing on join after auth
-			- refire /connect on focus
-			- ban logging?
+			- silent mute/ban/ipban info adds
 			
+			-x added /warn command
+			-x add unmute message pm
+			-x moderator action logging
+			-x new emote(s)
+			-x prevented batch appender from getting suspended indefinitely (i think)
+			-x non-plural text handling on mute/ban times
+			-x added role change update on joining channel after authing
+			-x fixed handling of names with first character '"'
+			-x & escaping fixed
+			-x /msg continuation for quoted names fixed
+			-x users are no longer prevented from sending /msg while muted
+			
+			- refire /connect on focus
 			- custom lobby warning shows on regular games, shouldn't
-			- extra char restrictions?
 			- tab completion
 		*/
 		
@@ -359,6 +372,7 @@
 			
 			channelText[curChannel] = "";
 			
+			lastBatchTime = new Date().time;
 			batchTimer = new Timer(BATCH_TIMER, 0);
 			batchTimer.addEventListener(TimerEvent.TIMER, batchText);
 			batchTimer.start();
@@ -511,7 +525,7 @@
 				var uid = e.text.substr(1);
 				var user = channelRosterIds[curChannel][uid];
 				if (user != null){
-					if (user.name.indexOf(" ") >= 0){
+					if (user.name.indexOf(" ") >= 0 || user.name.charAt(0) == "\""){
 						var str = "";
 						for (var i=0; i<user.name.length; i++){
 							var ch = user.name.charAt(i);
@@ -571,6 +585,7 @@
 		}
 		
 		private function batchText(e:TimerEvent){
+			lastBatchTime = new Date().time;
 			var scrollBottom = history.taChat.scrollV == history.taChat.maxScrollV;
 			
 			history.taChat.htmlText = channelText[curChannel];
@@ -624,6 +639,7 @@
 						appendText("&nbsp;&nbsp;<font color='#FFFFFF'>/ban [NAME] [TIME] [REASON]</font> -- Ban [NAME] for [TIME] (1m,8h,1d,etc) with [REASON]");
 						appendText("&nbsp;&nbsp;<font color='#FFFFFF'>/unban [NAME]/[ID]</font> -- Unban user with [NAME] or [ID]");
 						appendText("&nbsp;&nbsp;<font color='#FFFFFF'>/kick [NAME] [REASON]</font> -- Kick [NAME] with [REASON]");
+						appendText("&nbsp;&nbsp;<font color='#FFFFFF'>/warn [NAME] [REASON]</font> -- Warn [NAME] with [REASON] - Has no direct effect");
 						appendText("&nbsp;&nbsp;<font color='#FFFFFF'>/banlist</font> -- List of bans");
 						appendText("&nbsp;&nbsp;<font color='#FFFFFF'>/mutelist</font> -- List of mutes");
 					default:
@@ -642,7 +658,7 @@
 			}
 			
 			if (mgs == null){
-				appendText("<B><font size='14' color='#FF0000'>Not currently connected to the chat server.  Type \"/connect\" to connect.</font></B>");
+				appendText("<B><font size='14' color='#FF0000'>Not currently connected to the chat server.  Type \"<font color='#FFFFFF'>/connect</font>\" to connect.</font></B>");
 				return;
 			}
 			
@@ -907,6 +923,26 @@
 							type = MGSocket.GAME_JSON;
 						}
 						
+						groups = line.match(/^\/warn (.+)/);
+						if (groups && line.length >= 7){
+							str = line.substring(6);
+							ret = splitInputMessage(str);
+							user = ret.user;
+							msg = ret.msg;
+							uid = channelRosterNames[curChannel][user];
+							
+							if (uid == null){
+								uid = user;
+								if (!Number(uid)){
+									appendText("<font size='12' color='#FFFFFF'>No user found.</font>", true);
+									return;
+								}
+							}
+							
+							obj = {type:"warnUser", fromUser:id, user:Number(uid), reason:msg, toChannel:curChannel};
+							type = MGSocket.GAME_JSON;
+						}
+						
 						groups = line.match(/^\/banlist/);
 						if (groups){
 							obj = {type:"banList", fromUser:id};
@@ -1132,9 +1168,25 @@
 			mgs = null;
 		}
 		
+		private function checkBatcher(){
+			var now:Number = new Date().time;
+			if (now > (lastBatchTime + BATCH_TIMER * 6)){
+				if (batchTimer != null){
+					batchTimer.removeEventListener(TimerEvent.TIMER, batchText);
+					batchTimer.stop();
+					batchTimer = null;
+				}
+				
+				batchTimer = new Timer(BATCH_TIMER, 0);
+				batchTimer.addEventListener(TimerEvent.TIMER, batchText);
+				batchTimer.start();
+			}
+		}
+		
 		private function onJson(e:MGEvent){
 			var obj:Object = e.object;
 			var type:uint = e.typeCode;
+			checkBatcher();
 			
 			//history.taChat.htmlText += type + " -- " + json;
 			
@@ -1195,8 +1247,8 @@
 						//{"type":"newLobby","toChannel":"home","lobby":37288,"fromUser":174613209,"modId":52,"workshopId":402418945,"name":"test","region":1,"hostname":"BMD","map":"couriermadness"}
 						
 						appendText("<A HREF='event:l" + obj.lobby + ":" + obj.fromUser + "'><font color='#00BFFF' size='14'><B>[</B></font><font color='#E18700' size='14'>" + lx.gmiToName[obj.workshopId] + "</font><font color='#00BFFF' size='14'><B>] </B>"
-								   + escapeTags(obj.name.replace(/ /g, "&nbsp;")) + " <B>&lt;" + lx.lobbyRegionProvider.requestItemAt(obj.region).label + "&gt;</B>"
-								   + " by </font><b><font color='#FFFFFF' size='14'>" + escapeTags(obj.hostname.replace(/ /g, "&nbsp;")) + "</font></b></A>");
+								   + escapeTags(obj.name).replace(/ /g, "&nbsp;") + " <B>&lt;" + lx.lobbyRegionProvider.requestItemAt(obj.region).label + "&gt;</B>"
+								   + " by </font><b><font color='#FFFFFF' size='14'>" + escapeTags(obj.hostname).replace(/ /g, "&nbsp;") + "</font></b></A>");
 						break;
 					case "ipbanList":
 						appendText("<font size='12' color='#FFFFFF'>&nbsp;&nbsp;IP Ban List:</font><font size='10'>");
@@ -1249,6 +1301,14 @@
 						appendText(getTimeString() +  "<b><font color='#E18700' size='14'>" + getUserString(obj.user, "") + " was <font color='#00FF00'>MUTED</font>  by " + getUserString(obj.byUser, "")
 								   + " for " + msToStringTime(obj.time) + " " + reason + "</font></b>", true);
 						break;
+					case "warnUser":
+						//channel:name, user:user.ID, fromUser:fromUser.ID, reason:reason
+						user = channelRosterIds[curChannel][obj.user];
+						reason = (obj.reason == "") ? "" : "(" + obj.reason + ")";
+						
+						appendText(getTimeString() +  "<b><font color='#E18700' size='14'>" + getUserString(obj.user, "") + " was <font color='#A000A0'>WARNED</font>  by " + getUserString(obj.fromUser, " ")
+								   + reason + "</font></b>", true);
+						break;
 					case "kickUser":
 						///channel:name, user:user.ID, byUser:byUser.ID, reason:reason
 						user = channelRosterIds[curChannel][obj.user];
@@ -1293,7 +1353,7 @@
 			var obj:Object = e.object;
 			if (obj.hasOwnProperty("error"))
 				appendText("<B><font color='#FF0000' size='14'>Error: " + escapeTags(obj.error) + "</font></B>");
-			appendText("<B><font color='#FF0000' size='14'>Connection was closed.  Type \"/connect\" to reconnect.</font></B>", true);
+			appendText("<B><font color='#FF0000' size='14'>Connection was closed.  Type \"<font color='#FFFFFF'>/connect</font>\" to reconnect.</font></B>", true);
 			
 			try{
 				mgs.close();
@@ -1308,6 +1368,7 @@
 		private function onUserDisconnected(e:MGEvent){
 			var obj:Object = e.object;
 			var user = channelRosterIds[curChannel][obj.fromUser];
+			checkBatcher();
 			
 			var extra = "";
 			if (role >= MGSocket.ROLE_MODERATOR)
@@ -1326,6 +1387,7 @@
 		private function onUserJoinChannel(e:MGEvent){
 			var obj:Object = e.object;
 			var user = {role:obj.role, name:obj.name};
+			checkBatcher();
 			
 			var extra = "";
 			if (role >= MGSocket.ROLE_MODERATOR)
@@ -1345,6 +1407,7 @@
 		private function onUserLeaveChannel(e:MGEvent){
 			var obj:Object = e.object;
 			var user = channelRosterIds[curChannel][obj.fromUser];
+			checkBatcher();
 			
 			var extra = "";
 			if (role >= MGSocket.ROLE_MODERATOR)
@@ -1470,7 +1533,7 @@
 		}
 		
 		private function escapeTags(str:String):String{
-			return str.replace(/>/g, "&gt;").replace(/</g, "&lt;");
+			return str.replace(/&/g, "&amp;").replace(/>/g, "&gt;").replace(/</g, "&lt;");
 		}
 		
 		private function getTimeString():String{
@@ -1496,7 +1559,7 @@
 				var color:String = getRoleColor(user.role);
 				//var color:String = getRoleColor(Math.floor(Math.random() * (1 + MGSocket.ROLE_ADMIN)));
 				
-				return "<font size='14' color='" + color + "'><A HREF='event:a" + userID + "'><B>" + escapeTags(user.name.replace(/ /g, "&nbsp;")) + "</B></A>" + append + "</font>";
+				return "<font size='14' color='" + color + "'><A HREF='event:a" + userID + "'><B>" + escapeTags(user.name).replace(/ /g, "&nbsp;") + "</B></A>" + append + "</font>";
 			}
 		}
 		
@@ -1593,6 +1656,8 @@
 			}
 		
 			ms = Math.floor(ms * 100) / 100.0;
+			if (ms == 1.00)
+				return ms + unit.substr(0, unit.length - 1);
 			return ms + unit;
 		}
 		
@@ -1622,8 +1687,10 @@
 				if (!found){
 					user = str.substr(1);
 					msg = "";
+					replace = "\"" + user + "\" ";
 				}
-				else{					
+				else{
+					replace = "\"" + str.substring(1,end) + "\" ";
 					user = "";
 					escape = false;
 					for (var i=1; i<end; i++){
@@ -1644,8 +1711,6 @@
 					if (msg.charAt(0) == ' ')
 						msg = msg.substr(1);
 				}
-				
-				replace = "\"" + user + "\" ";
 			}
 			else{
 				if (str.indexOf(" ") > 0){
