@@ -94,6 +94,8 @@
 									"DendiFace":20,
 									"FailFish":20,
 									"FrankerZ":20,
+									"FrogGod":20,
+									"GreyFace":20,
 									"HollaHolla":20,
 									"KAPOW":20,
 									"Kappa":20,
@@ -114,24 +116,18 @@
 									"UltraSin":20,
 									"WinWaker":20};
 									
-		//BabyRage Baku BibleThump DendiFace FailFish FrankerZ HollaHolla KAPOW Kappa Keepo Kreygasm LordGaben MyllDerp NoyaHammer PeonSad PJSalt PogChamp PromNight PWizzy RoyMander SnoozeFest TeamGomez TrashMio UltraSin WinWaker
+		//BabyRage Baku BibleThump DendiFace FailFish FrankerZ FrogGod GreyFace HollaHolla KAPOW Kappa Keepo Kreygasm LordGaben MyllDerp NoyaHammer PeonSad PJSalt PogChamp PromNight PWizzy RoyMander SnoozeFest TeamGomez TrashMio UltraSin WinWaker
 		
 		/*  TODO
 			- add password display to host in LX
 			- share with chat button on host display
 			- silent mute/ban/ipban info adds
+			- refix join channel after auth
 			
-			-x added /warn command
-			-x add unmute message pm
-			-x moderator action logging
-			-x new emote(s)
-			-x prevented batch appender from getting suspended indefinitely (i think)
-			-x non-plural text handling on mute/ban times
-			-x added role change update on joining channel after authing
-			-x fixed handling of names with first character '"'
-			-x & escaping fixed
-			-x /msg continuation for quoted names fixed
-			-x users are no longer prevented from sending /msg while muted
+			-x Messages in the room mentioning your name are now highlighted
+			-x Added escaping to ban/mute/ipban lists
+			-x Rewrote the string replacement/regex functions in scaleform to handle Unicode better
+			-x Added emotes.
 			
 			- refire /connect on focus
 			- custom lobby warning shows on regular games, shouldn't
@@ -1096,8 +1092,12 @@
 				/*groups = line.match(/^\/test (.+)/);
 				if (groups){
 					str = line.substring(6);
-					ret = splitInputMessage(str);
-					trace((new JSONEncoder(ret)).getString());
+					
+					trace(str);
+					trace(str.replace(/</g, "&lt;"));
+					trace(fixedReplace(str, {"<":"&lt;"}));
+					//ret = splitInputMessage(str);
+					//trace((new JSONEncoder(ret)).getString());
 					//appendText('<IMG SRC="img://(A:36:' + groups[1] + ':100:0)resource/flash3/images/emoticons/dchorse.png" WIDTH="30" HEIGHT="30" ALIGN="baseline"/>');
 					//appendText('<font size="16"><IMG SRC="img://(A:21:26816:100:0)resource/flash3/images/emoticons/sad.png" WIDTH="18" HEIGHT="18" ALIGN="baseline"></font>');
 				}*/
@@ -1222,8 +1222,12 @@
 								return;
 								
 							var toChannel = obj.toChannel;
+							var colorStr = "";
+							if (obj.msg.indexOf(userName) >= 0)
+								colorStr = " color='#04CC00'";
+								
 							if (toChannel == curChannel){
-								appendText(getTimeString() + getUserString(obj.fromUser) + " <font size='14'>" + escapeTags(obj.msg) + " </font>\n");
+								appendText(getTimeString() + getUserString(obj.fromUser) + " <font size='14'" + colorStr + ">" + escapeTags(obj.msg) + " </font>\n");
 							}
 						}
 						break;
@@ -1236,7 +1240,7 @@
 						appendText("</font>", true);
 						break;
 					case "info":
-						appendText("<B><font color='#FFFFFF' size='14'>" + obj.msg + "</font></B>", true);
+						appendText("<B><font color='#FFFFFF' size='14'>" + escapeTags(obj.msg) + "</font></B>", true);
 						break;
 					case "joinLobby":
 						if (obj.fromUser == lobbyLinkUser){
@@ -1247,13 +1251,13 @@
 						//{"type":"newLobby","toChannel":"home","lobby":37288,"fromUser":174613209,"modId":52,"workshopId":402418945,"name":"test","region":1,"hostname":"BMD","map":"couriermadness"}
 						
 						appendText("<A HREF='event:l" + obj.lobby + ":" + obj.fromUser + "'><font color='#00BFFF' size='14'><B>[</B></font><font color='#E18700' size='14'>" + lx.gmiToName[obj.workshopId] + "</font><font color='#00BFFF' size='14'><B>] </B>"
-								   + escapeTags(obj.name).replace(/ /g, "&nbsp;") + " <B>&lt;" + lx.lobbyRegionProvider.requestItemAt(obj.region).label + "&gt;</B>"
-								   + " by </font><b><font color='#FFFFFF' size='14'>" + escapeTags(obj.hostname).replace(/ /g, "&nbsp;") + "</font></b></A>");
+								   + fixedReplace(escapeTags(obj.name), {" ":"&nbsp;"}) + " <B>&lt;" + lx.lobbyRegionProvider.requestItemAt(obj.region).label + "&gt;</B>"
+								   + " by </font><b><font color='#FFFFFF' size='14'>" + fixedReplace(escapeTags(obj.hostname), {" ":"&nbsp;"}) + "</font></b></A>");
 						break;
 					case "ipbanList":
 						appendText("<font size='12' color='#FFFFFF'>&nbsp;&nbsp;IP Ban List:</font><font size='10'>");
 						for (var ipban in obj.ipbanList){
-							appendText("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" + ipban + " -- " + obj.ipbanList[ipban] + "\n");
+							appendText("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" + ipban + " -- " + fixedReplace(escapeTags(obj.ipbanList[ipban]), {" ":"&nbsp;"}) + "\n");
 						}
 						appendText("</font>", true);
 						break;
@@ -1261,9 +1265,9 @@
 						appendText("<font size='12' color='#FFFFFF'>&nbsp;&nbsp;Ban List:</font><font size='10'>");
 						for (var ban in obj.banList){
 							if (channelRosterIds[curChannel][ban])
-								appendText("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" + channelRosterIds[curChannel][ban].name + "@" + ban + " - " + obj.banList[ban] + "\n");
+								appendText("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" + fixedReplace(escapeTags(channelRosterIds[curChannel][ban].name), {" ":"&nbsp;"}) + "@" + ban + " - " + fixedReplace(escapeTags(obj.banList[ban]), {" ":"&nbsp;"}) + "\n");
 							else{
-								appendText("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" + ban + " - " + obj.banList[ban] + "\n");
+								appendText("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" + ban + " - " + fixedReplace(escapeTags(obj.banList[ban]), {" ":"&nbsp;"}) + "\n");
 							}
 						}
 						appendText("</font>", true);
@@ -1272,9 +1276,9 @@
 						appendText("<font size='12' color='#FFFFFF'>&nbsp;&nbsp;Mute List:</font><font size='10'>");
 						for (var mute in obj.muteList){
 							if (channelRosterIds[curChannel][mute])
-								appendText("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" + channelRosterIds[curChannel][mute].name + "@" + mute + " - " + obj.muteList[mute] + "\n");
+								appendText("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" + fixedReplace(escapeTags(channelRosterIds[curChannel][mute].name), {" ":"&nbsp;"}) + "@" + mute + " - " + fixedReplace(escapeTags(obj.muteList[mute]), {" ":"&nbsp;"}) + "\n");
 							else{
-								appendText("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" + mute + " - " + obj.muteList[mute] + "\n");
+								appendText("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" + mute + " - " + fixedReplace(escapeTags(obj.muteList[mute]), {" ":"&nbsp;"}) + "\n");
 							}
 						}
 						appendText("</font>", true);
@@ -1533,7 +1537,29 @@
 		}
 		
 		private function escapeTags(str:String):String{
-			return str.replace(/&/g, "&amp;").replace(/>/g, "&gt;").replace(/</g, "&lt;");
+			//return str.replace(/&/g, "&amp;").replace(/>/g, "&gt;").replace(/</g, "&lt;");
+			return fixedReplace(str, {"&":"&amp;", "<":"&lt;", ">":"&gt;"});
+		}
+		
+		private function fixedReplace(str:String, repl:Object):String{
+			var result = "";
+			var sectionStart = 0;
+			var current = 0;
+			while (current != str.length){
+				var c = str.charAt(current);
+				var replace = repl[c];
+				
+				if (replace != null){
+					result += str.substring(sectionStart, current) + replace;
+					sectionStart = current+1;
+				}
+				
+				current++;
+			}
+			
+			result += str.substring(sectionStart);
+			
+			return result;
 		}
 		
 		private function getTimeString():String{
@@ -1559,7 +1585,7 @@
 				var color:String = getRoleColor(user.role);
 				//var color:String = getRoleColor(Math.floor(Math.random() * (1 + MGSocket.ROLE_ADMIN)));
 				
-				return "<font size='14' color='" + color + "'><A HREF='event:a" + userID + "'><B>" + escapeTags(user.name).replace(/ /g, "&nbsp;") + "</B></A>" + append + "</font>";
+				return "<font size='14' color='" + color + "'><A HREF='event:a" + userID + "'><B>" + fixedReplace(escapeTags(user.name), {" ":"&nbsp;"}) + "</B></A>" + append + "</font>";
 			}
 		}
 		
