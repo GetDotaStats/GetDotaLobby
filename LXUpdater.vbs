@@ -28,7 +28,8 @@ dim bStrm: Set bStrm = createobject("Adodb.Stream")
 xHttp.Open "GET", "https://github.com/GetDotaStats/GetDotaLobby/raw/master/version.txt", False
 xHttp.Send
 
-dim latestVer, currentVer
+dim latestVer, currentVer, latestVerStr, currentVerStr
+latestVerStr = xHttp.responseText
 latestVer = CDbl(xHttp.responseText)
 currentVer = 0.00
 
@@ -36,7 +37,10 @@ dim verFile
 Set objFSO = CreateObject("Scripting.FileSystemObject")
 If (objFSO.FileExists(appDataLocation & "\version.txt")) Then
   Set verFile = objFSO.OpenTextFile(appDataLocation & "\version.txt",1)
-  currentVer = CDbl(verFile.ReadAll())
+  currentVerStr = verFile.ReadAll()
+  If (InStr(currentVerStr, ".") > 0) Then
+    currentVer = CDbl(currentVerStr)
+  End If
   verFile.Close
   Set verFile = Nothing
 End If
@@ -124,7 +128,7 @@ end if
 
 ' Write out the version.txt since the update suceeded
 Set verFile = objFSO.OpenTextFile(appDataLocation & "\version.txt",2,true)
-verFile.WriteLine(latestVer)
+verFile.WriteLine(latestVerStr)
 verFile.Close
 Set verFile = Nothing
 
