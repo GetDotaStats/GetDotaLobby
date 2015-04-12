@@ -1,5 +1,13 @@
 forceCScriptExecution
 
+dim boxresult
+boxresult = MsgBox ("Are you sure you want to uninstall the Lobby Explorer?  This will delete any local settings you have.", vbYesNo, "Uninstall Lobby Explorer?")
+
+Select Case boxresult
+  Case vbNo
+    wscript.quit(0)
+End Select
+
 SetLocale(1033)
 
 dim steampath
