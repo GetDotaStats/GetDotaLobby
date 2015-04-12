@@ -122,6 +122,7 @@
 									"RoyMander":20,
 									"ShhQuiet":20,
 									"SleepyTime":20,
+									"SmokeEveryday":20,
 									"SnoozeFest":20,
 									"TeamGomez":20,
 									"TrashMio":20,
@@ -130,7 +131,7 @@
 									"VolvoPls":9,
 									"WinWaker":20};
 									
-		//BabyRage Baku BibleThump ChaChing DankMeme DansGame DendiFace EmoTA FailFish FrankerZ FrogGod GreyFace HandsomeDevil HollaHolla JohnMadden KAPOW Kappa Keepo Kreygasm LastWord LordGaben MyllDerp NoyaHammer PeonSad PJSalt PogChamp PromNight PureSkill PWizzy RoyMander ShhQuiet SleepyTime SnoozeFest TeamGomez TrashMio TrollFace UltraSin VolvoPls WinWaker
+		//BabyRage Baku BibleThump ChaChing DankMeme DansGame DendiFace EmoTA FailFish FrankerZ FrogGod GreyFace HandsomeDevil HollaHolla JohnMadden KAPOW Kappa Keepo Kreygasm LastWord LordGaben MyllDerp NoyaHammer PeonSad PJSalt PogChamp PromNight PureSkill PWizzy RoyMander ShhQuiet SleepyTime SmokeEveryday SnoozeFest TeamGomez TrashMio TrollFace UltraSin VolvoPls WinWaker
 		
 		/*  TODO
 			- add password display to host in LX
