@@ -42,7 +42,7 @@ package dota2Net {
 		
 		private var closeTimer:Timer;
 		private var closeCount:int = 0;
-		private var closeMax:int = 60;
+		private var closeMax:int = 120;
 		
 		private var checkFunction:Function = null;
 		

@@ -60,7 +60,7 @@
         public var globals:Object;
         public var elementName:String;
 		
-		private var version:String = "0.36";
+		private var version:String = "0.37";
 		private var DEBUG:Boolean = false;
 		private var versionChecked:Boolean = false;
 		
@@ -197,6 +197,11 @@
 		public var minigameKV:Object = null;
 		public var minigameData:Object = null;
 		var lxOptions:Object = null;
+		
+		var oldTab = -1;
+		var cleanupInit:Timer;
+		var hasSetupLink = false;
+		var tempLink = "";
 		
 		public function GetDotaLobby() {
 			// constructor code
@@ -554,6 +559,14 @@
 			}
 			else
 				checkBox.selected = false;
+				
+			var setupLinks:Function = function(e:TimerEvent){
+				SetupLink("http://www.dota2.com/workshop/requirements#uvs");
+			};
+			
+			var urlTimer:Timer = new Timer(1000,1);
+			urlTimer.addEventListener(TimerEvent.TIMER, setupLinks);
+			urlTimer.start();
 				
 			checkBox.addEventListener(ButtonEvent.CLICK, shareMMRClicked);
 			
@@ -1088,6 +1101,48 @@
 			sendMMR(null, e.target.selected);
 		}
 		
+		public function cleanupLinkFunc(e:TimerEvent){
+			trace("Has the workshop appeared yet?");
+			globals.Loader_workshop.movieClip.setPublishStepTo(-1, -1);
+			trace("Yes it has");
+			globals.Loader_economy.movieClip.gameAPI.EconomySwitchToSection(0);
+			globals.Loader_top_bar.movieClip.gameAPI.DashboardSwitchToSection(oldTab);
+			hasSetupLink = true;
+			//globals.Loader_workshop.movieClip.gameAPI.OpenWebsite(tempLink);
+			tempLink = "";
+			cleanupInit.stop();
+		}
+		public function SetupLink(url:String) {
+			if (hasSetupLink) {
+				globals.Loader_workshop.movieClip.gameAPI.OpenWebsite(url);
+				return;
+			} else {
+				tempLink = url;
+			}
+			//Sec, initializing Loader_workshop for web browser
+			var tabs = globals.Loader_top_bar.movieClip.tabs;
+			if (tabs.TodayButton.selected) {
+				oldTab = 0;
+			} else if (tabs.EconomyButton.selected) {
+				oldTab = 1;
+			} else if (tabs.PlayButton.selected) {
+				oldTab = 2;
+			} else if (tabs.WatchButton.selected) {
+				oldTab = 3;
+			} else if (tabs.LearnButton.selected) {
+				oldTab = 4;
+			} else if (tabs.SocializeButton.selected) {
+				oldTab = 5;
+			} else if (tabs.CommunityButton.selected) {
+				oldTab = 6;
+			}
+			globals.Loader_top_bar.movieClip.gameAPI.DashboardSwitchToSection(1);
+			globals.Loader_economy.movieClip.gameAPI.EconomySwitchToSection(3);
+			cleanupInit = new Timer(1);
+			cleanupInit.addEventListener(TimerEvent.TIMER_COMPLETE, cleanupLinkFunc);
+			cleanupInit.start();
+		}
+		
 		public function populateMinigames(e:TimerEvent){
 			var curX:int = 0;
 			var curY:int = 0;
@@ -1491,7 +1546,7 @@
 				if (int(groups[1]) == nextPages){
 					//traceLX('super done'); // no more pages
 					var tf:TextField = errorPanel("Game Mode not found.  Copy this link to your browser to subscribe.");
-					var link:String = "http://steamcommunity.com/sharedfiles/filedetails/?id=" + gmi;
+					/*var link:String = "http://steamcommunity.com/sharedfiles/filedetails/?id=" + gmi;
 					traceLX(link);
 					
 					var mc:MovieClip = new MovieClip();
@@ -1503,8 +1558,9 @@
 					tf.parent.addChild(mc);
 					
 					var field:TextField = createLinkPanel(mc, link);
-					tf.parent.addChild(field);
+					tf.parent.addChild(field);*/
 					
+					SetupLink("http://steamcommunity.com/sharedfiles/filedetails/?id=" + gmi);
 					return;
 				}
 				
@@ -1875,6 +1931,38 @@
 			lobbyStateTimer.start();
 			
 			globals.Loader_lobby_settings.movieClip.LobbySettings.passwordInput.visible = false;
+
+			var lgButton = globals.Loader_practicelobby.movieClip.PracticeLobby.LoadGameButton;
+			var bgClass:Class = getDefinitionByName("DB_inset") as Class;
+			var mc = new bgClass();
+			trace(lgButton.width)
+			trace(lgButton.scaleX);
+			mc.x = lgButton.x + lgButton.width * lgButton.scaleX / 2;
+			mc.y = lgButton.y - 12;
+			mc.height = 24;
+			mc.width = 130;
+			
+			var pwLabel:TextField = createTextField(10);
+			pwLabel.text = "Password";
+			pwLabel.visible = true;
+			pwLabel.x = mc.x;
+			pwLabel.y = mc.y - 13;
+			
+			var pwField:TextField = createTextInput(mc, 12, 0xDDDDDD, TextFormatAlign.CENTER);
+			pwField.text = target_password;
+			pwField.visible = true;
+			TextFieldEx.setVerticalAlign(pwField, TextFieldEx.VALIGN_CENTER);
+			pwField.y = mc.y;
+			pwField.height = mc.height;
+			
+			pwField.maxChars = 0;
+			pwField.type = TextFieldType.DYNAMIC;
+			pwField.selectable = true;
+			
+			globals.Loader_practicelobby.movieClip.PracticeLobby.addChild(mc);
+			globals.Loader_practicelobby.movieClip.PracticeLobby.addChild(pwLabel);
+			globals.Loader_practicelobby.movieClip.PracticeLobby.addChild(pwField);
+			
 			
 			var oldLeaveButton = globals.Loader_practicelobby.movieClip.gameAPI.LeaveButton;
 			var oldStartButton = globals.Loader_practicelobby.movieClip.gameAPI.StartGameButton;
@@ -1900,6 +1988,9 @@
 					globals.Loader_practicelobby.movieClip.gameAPI.StartGameButton = oldStartButton;
 					globals.Loader_popups.movieClip.gameAPI.Button1Clicked = oldButton1;
 					globals.Loader_lobby_settings.movieClip.LobbySettings.passwordInput.visible = true;
+					globals.Loader_practicelobby.movieClip.PracticeLobby.removeChild(mc);
+					globals.Loader_practicelobby.movieClip.PracticeLobby.removeChild(pwField);
+					globals.Loader_practicelobby.movieClip.PracticeLobby.removeChild(pwLabel);
 				};
 				
 				retryAsyncCall("d2mods/api/lobby_close.php?lid=" + lobbyState.lid + "&s=0&t=" + lobbyState.token, "Exiting failure", 2, doneRegistration, doneRegistration);
@@ -1914,6 +2005,9 @@
 				globals.Loader_practicelobby.movieClip.gameAPI.StartGameButton = oldStartButton;
 				globals.Loader_popups.movieClip.gameAPI.Button1Clicked = oldButton1;
 				globals.Loader_lobby_settings.movieClip.LobbySettings.passwordInput.visible = true;
+				globals.Loader_practicelobby.movieClip.PracticeLobby.removeChild(mc);
+				globals.Loader_practicelobby.movieClip.PracticeLobby.removeChild(pwField);
+				globals.Loader_practicelobby.movieClip.PracticeLobby.removeChild(pwLabel);
 			};
 			
 			globals.Loader_practicelobby.movieClip.gameAPI.StartGameButton = function (){
@@ -1925,6 +2019,9 @@
 					globals.Loader_practicelobby.movieClip.gameAPI.StartGameButton = oldStartButton;
 					globals.Loader_popups.movieClip.gameAPI.Button1Clicked = oldButton1;
 					globals.Loader_lobby_settings.movieClip.LobbySettings.passwordInput.visible = true;
+					globals.Loader_practicelobby.movieClip.PracticeLobby.removeChild(mc);
+					globals.Loader_practicelobby.movieClip.PracticeLobby.removeChild(pwField);
+					globals.Loader_practicelobby.movieClip.PracticeLobby.removeChild(pwLabel);
 				};
 				
 				retryAsyncCall("d2mods/api/lobby_close.php?lid=" + lobbyState.lid + "&s=1&t=" + lobbyState.token, "Lobby close failure", 2, doneRegistration, doneRegistration);
@@ -2025,7 +2122,7 @@
 				var gmi:String = rxGMI.exec(msg)[1];
 				
 				var tf:TextField = errorPanel("Game Mode not found.  Copy this link to your browser to subscribe.");
-				var link:String = "http://steamcommunity.com/sharedfiles/filedetails/?id=" + gmi;
+				/*var link:String = "http://steamcommunity.com/sharedfiles/filedetails/?id=" + gmi;
 				traceLX(link);
 				
 				var mc:MovieClip = new MovieClip();
@@ -2037,7 +2134,9 @@
 				tf.parent.addChild(mc);
 				
 				var field:TextField = createLinkPanel(mc, link);
-				tf.parent.addChild(field);
+				tf.parent.addChild(field);*/
+				
+				SetupLink("http://steamcommunity.com/sharedfiles/filedetails/?id=" + gmi);
 			}
 		}
 		

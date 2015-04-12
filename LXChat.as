@@ -39,6 +39,7 @@
 		private var BACKLOG = 30000;
 		private var MSG_HISTORY = 30;
 		private var CONN_TIMEOUT = 6000;
+		private var ROSTER_BATCH_COUNT = 5;
 		
 		private var lx = null;
 		
@@ -58,7 +59,8 @@
 		private var inputBG:MovieClip;
 		private var participantsButton:MovieClip;
 		
-		
+		private var batchCount = ROSTER_BATCH_COUNT - 1;
+		private var rosterUnclean:Boolean = true;
 		private var rosterShown:Boolean = true;
 		private var resizeStartX:Number;
 		private var resizeStartY:Number;
@@ -91,16 +93,23 @@
 		private var substitutions = {"BabyRage":20,
 									"Baku":20,
 									"BibleThump":20,
+									"ChaChing":20,
+									"DankMeme":20,
+									"DansGame":20,
 									"DendiFace":20,
+									"EmoTA":20,
 									"FailFish":20,
 									"FrankerZ":20,
 									"FrogGod":20,
 									"GreyFace":20,
+									"HandsomeDevil":20,
 									"HollaHolla":20,
+									"JohnMadden":20,
 									"KAPOW":20,
 									"Kappa":20,
 									"Keepo":20,
 									"Kreygasm":20,
+									"LastWord":20,
 									"LordGaben":20,
 									"MyllDerp":20,
 									"NoyaHammer":20,
@@ -108,22 +117,31 @@
 									"PJSalt":20,
 									"PogChamp":20,
 									"PromNight":20,
+									"PureSkill":20,
 									"PWizzy":20,
 									"RoyMander":20,
+									"ShhQuiet":20,
+									"SleepyTime":20,
 									"SnoozeFest":20,
 									"TeamGomez":20,
 									"TrashMio":20,
+									"TrollFace":20,
 									"UltraSin":20,
+									"VolvoPls":9,
 									"WinWaker":20};
 									
-		//BabyRage Baku BibleThump DendiFace FailFish FrankerZ FrogGod GreyFace HollaHolla KAPOW Kappa Keepo Kreygasm LordGaben MyllDerp NoyaHammer PeonSad PJSalt PogChamp PromNight PWizzy RoyMander SnoozeFest TeamGomez TrashMio UltraSin WinWaker
+		//BabyRage Baku BibleThump ChaChing DankMeme DansGame DendiFace EmoTA FailFish FrankerZ FrogGod GreyFace HandsomeDevil HollaHolla JohnMadden KAPOW Kappa Keepo Kreygasm LastWord LordGaben MyllDerp NoyaHammer PeonSad PJSalt PogChamp PromNight PureSkill PWizzy RoyMander ShhQuiet SleepyTime SnoozeFest TeamGomez TrashMio TrollFace UltraSin VolvoPls WinWaker
 		
 		/*  TODO
 			- add password display to host in LX
 			- share with chat button on host display
 			- silent mute/ban/ipban info adds
-			- refix join channel after auth
+			- batch roster stuff, maytbe check batch fixer for delay causing
+			- add dansgame emote
+			- role api on lobbybot
+			- 
 			
+			-x Fixed join channel after auth i think
 			-x Messages in the room mentioning your name are now highlighted
 			-x Added escaping to ban/mute/ipban lists
 			-x Rewrote the string replacement/regex functions in scaleform to handle Unicode better
@@ -581,6 +599,11 @@
 		}
 		
 		private function batchText(e:TimerEvent){
+			batchCount++;
+			if (batchCount >= ROSTER_BATCH_COUNT){
+				batchCount = 0;
+				drawRoster();
+			}
 			lastBatchTime = new Date().time;
 			var scrollBottom = history.taChat.scrollV == history.taChat.maxScrollV;
 			
@@ -1180,6 +1203,8 @@
 				batchTimer = new Timer(BATCH_TIMER, 0);
 				batchTimer.addEventListener(TimerEvent.TIMER, batchText);
 				batchTimer.start();
+				
+				batchCount = ROSTER_BATCH_COUNT - 1;
 			}
 		}
 		
@@ -1203,7 +1228,7 @@
 						
 						participantsButton.label = String(count);
 						
-						drawRoster();
+						rosterUnclean = true;
 						//appendText((new JSONEncoder(channelRosterIds)).getString() + "\n");
 						//appendText((new JSONEncoder(channelRosterNames)).getString() + "\n");
 						break;
@@ -1235,7 +1260,7 @@
 						appendText("<font size='12' color='#FFFFFF'>&nbsp;&nbsp;Whois:</font><font size='10'>");
 						for (var property in obj){
 							if (property != "type")
-								appendText("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" + property + ": " + obj[property] + "\n");
+								appendText("&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;" + property + ": " + fixedReplace(escapeTags(obj[property]), {" ":"&nbsp;"}) + "\n");
 						}
 						appendText("</font>", true);
 						break;
@@ -1289,13 +1314,13 @@
 						var reason = (obj.reason == "") ? "" : "(" + obj.reason + ")";
 						
 						appendText(getTimeString() +  "<b><font color='#E18700' size='14'>" + getUserString(obj.user, "") + " was <font color='#FF0000'>BANNED</font> by " + getUserString(obj.byUser, "")
-								   + " for " + msToStringTime(obj.time) + " " + reason + "</font></b>", true);
+								   + " for " + msToStringTime(obj.time) + " " + fixedReplace(escapeTags(reason), {" ":"&nbsp;"}) + "</font></b>", true);
 						
 						delete channelRosterIds[curChannel][obj.user];
 						delete channelRosterNames[curChannel][user.name];
 						
 						participantsButton.label = String(Number(participantsButton.label) - 1)
-						drawRoster();
+						rosterUnclean = true;
 						break;
 					case "muteUser":
 						//channel:name, user:user.ID, byUser:byUser.ID, reason:reason, time:time
@@ -1303,7 +1328,7 @@
 						reason = (obj.reason == "") ? "" : "(" + obj.reason + ")";
 						
 						appendText(getTimeString() +  "<b><font color='#E18700' size='14'>" + getUserString(obj.user, "") + " was <font color='#00FF00'>MUTED</font>  by " + getUserString(obj.byUser, "")
-								   + " for " + msToStringTime(obj.time) + " " + reason + "</font></b>", true);
+								   + " for " + msToStringTime(obj.time) + " " + fixedReplace(escapeTags(reason), {" ":"&nbsp;"}) + "</font></b>", true);
 						break;
 					case "warnUser":
 						//channel:name, user:user.ID, fromUser:fromUser.ID, reason:reason
@@ -1311,7 +1336,7 @@
 						reason = (obj.reason == "") ? "" : "(" + obj.reason + ")";
 						
 						appendText(getTimeString() +  "<b><font color='#E18700' size='14'>" + getUserString(obj.user, "") + " was <font color='#A000A0'>WARNED</font>  by " + getUserString(obj.fromUser, " ")
-								   + reason + "</font></b>", true);
+								   + fixedReplace(escapeTags(reason), {" ":"&nbsp;"}) + "</font></b>", true);
 						break;
 					case "kickUser":
 						///channel:name, user:user.ID, byUser:byUser.ID, reason:reason
@@ -1320,13 +1345,13 @@
 						reason = (obj.reason == "") ? "" : "(" + obj.reason + ")";
 						
 						appendText(getTimeString() +  "<b><font color='#E18700' size='14'>" + getUserString(obj.user, "") + " was KICKED by " + getUserString(obj.byUser, " ")
-								   + reason + "</font></b>", true);
+								   + fixedReplace(escapeTags(reason), {" ":"&nbsp;"}) + "</font></b>", true);
 						
 						delete channelRosterIds[curChannel][obj.user];
 						delete channelRosterNames[curChannel][user.name];
 						
 						participantsButton.label = String(Number(participantsButton.label) - 1)
-						drawRoster();
+						rosterUnclean = true;
 						break;
 				}
 			}
@@ -1385,7 +1410,7 @@
 			delete channelRosterNames[curChannel][user.name];
 			
 			participantsButton.label = String(Number(participantsButton.label) - 1)
-			drawRoster();
+			rosterUnclean = true;
 		}
 		
 		private function onUserJoinChannel(e:MGEvent){
@@ -1405,7 +1430,7 @@
 				appendText(getTimeString() +  "<i>" + getUserString(obj.fromUser, "") + extra + " <font size='10' color='#FFFFFF'>joined the room.</font></i>");
 			
 			participantsButton.label = String(Number(participantsButton.label) + 1)
-			drawRoster();
+			rosterUnclean = true;
 		}
 		
 		private function onUserLeaveChannel(e:MGEvent){
@@ -1424,7 +1449,7 @@
 			delete channelRosterNames[curChannel][user.name];
 			
 			participantsButton.label = String(Number(participantsButton.label) - 1)
-			drawRoster();
+			rosterUnclean = true;
 		}
 		
 				
@@ -1443,7 +1468,7 @@
 			if (obj.user == this.id)
 				this.role = obj.role;
 			
-			drawRoster();
+			rosterUnclean = true;
 		}
 		
 		private function onConnected(e:Event){
@@ -1503,9 +1528,10 @@
 			var moderators = "";
 			var users = "";
 			
-			if (!rosterShown)
+			if (!rosterShown || !rosterUnclean)
 				return;
 			
+			rosterUnclean = false;
 			var a:Array = new Array();
 			for (var key:String in channelRosterNames[curChannel]){
 				a.push(key);
