@@ -97,6 +97,7 @@
 									"DankMeme":20,
 									"DansGame":20,
 									"DendiFace":20,
+									"EleGiggle":20,
 									"EmoTA":20,
 									"FailFish":20,
 									"FrankerZ":20,
@@ -122,6 +123,7 @@
 									"RoyMander":20,
 									"ShhQuiet":20,
 									"SleepyTime":20,
+									"SmugCourier":20,
 									"SnoozeFest":20,
 									"TeamGomez":20,
 									"TinkerFi":20,
@@ -131,7 +133,7 @@
 									"VolvoPls":9,
 									"WinWaker":20};
 									
-		//BabyRage Baku BibleThump ChaChing DankMeme DansGame DendiFace EmoTA FailFish FrankerZ FrogGod GreyFace HandsomeDevil HollaHolla JohnMadden KAPOW Kappa Keepo Kreygasm LastWord LordGaben MyllDerp NoyaHammer PeonSad PJSalt PogChamp PromNight PureSkill PWizzy RoyMander ShhQuiet SleepyTime SnoozeFest TeamGomez TinkerFi TrashMio TrollFace UltraSin VolvoPls WinWaker
+		//BabyRage Baku BibleThump ChaChing DankMeme DansGame DendiFace EleGiggle EmoTA FailFish FrankerZ FrogGod GreyFace HandsomeDevil HollaHolla JohnMadden KAPOW Kappa Keepo Kreygasm LastWord LordGaben MyllDerp NoyaHammer PeonSad PJSalt PogChamp PromNight PureSkill PWizzy RoyMander ShhQuiet SleepyTime SmugCourier SnoozeFest TeamGomez TinkerFi TrashMio TrollFace UltraSin VolvoPls WinWaker
 		
 		/*  TODO
 			- add password display to host in LX
@@ -1116,10 +1118,8 @@
 				/*groups = line.match(/^\/test (.+)/);
 				if (groups){
 					str = line.substring(6);
-					
-					trace(str);
-					trace(str.replace(/</g, "&lt;"));
-					trace(fixedReplace(str, {"<":"&lt;"}));
+					//steam://connect/<IP>[:port]
+					lx.SetupLink(str);
 					//ret = splitInputMessage(str);
 					//trace((new JSONEncoder(ret)).getString());
 					//appendText('<IMG SRC="img://(A:36:' + groups[1] + ':100:0)resource/flash3/images/emoticons/dchorse.png" WIDTH="30" HEIGHT="30" ALIGN="baseline"/>');
@@ -1156,9 +1156,9 @@
 				appendText("<I><font color='#FFFFFF' size='14'>Unable to connect to server... Please try again.</font></I>", true);
 				return;
 			}
-			mgs = new MGSocket();			
+			mgs = new MGSocket();		
 			
-			mgs.connect(connectionIP, 7123, id, userName, authToken);
+			mgs.connect(connectionIP, 7123, id, userName, Number(lx.version), authToken);
 			authed = false;
 			role = MGSocket.ROLE_USER;
 			

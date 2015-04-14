@@ -38,6 +38,7 @@
 		private var id:int = -1;
 		private var userName:String = "";
 		private var authToken:String = null;
+		private var version:Number = 0;
 		
 		public var curObj:Object = null;
 		private var sendQueue:Array = new Array();
@@ -59,10 +60,11 @@
 			socket = new Socket();
 		}
 		
-		public function connect(ip:String, port:int, id:int, userName:String, authToken:String = null){
+		public function connect(ip:String, port:int, id:int, userName:String, version:Number, authToken:String = null){
 			trace("[MGSocket] Connecting to " + ip + ":" + port);
 			this.id = id;
 			this.userName = userName;
+			this.version = version;
 			this.authToken = authToken;
 			socket.addEventListener(Event.CONNECT, socketConnect);
 			socket.addEventListener(ProgressEvent.SOCKET_DATA, dataRead);
@@ -95,7 +97,7 @@
 			socketReady = true;
 			socket.removeEventListener(Event.CONNECT, socketConnect);
 			
-			writeJSON({type:"connect", userID:id, userName:userName}, SYSTEM_JSON);
+			writeJSON({type:"connect", userID:id, userName:userName, version:version}, SYSTEM_JSON);
 			write(new ByteArray(), PING_NOCLOSE);
 			
 			pingTimer = new Timer(20000,0);

@@ -25,7 +25,8 @@ end if
 dim xHttp: Set xHttp = createobject("MSXML2.ServerXMLHTTP.6.0")
 dim bStrm: Set bStrm = createobject("Adodb.Stream")
 'xHttp.Open "GET", "http://getdotastats.com/d2mods/api/lobby_version.txt", False
-xHttp.Open "GET", "https://github.com/GetDotaStats/GetDotaLobby/raw/master/version.txt", False
+'xHttp.Open "GET", "https://github.com/GetDotaStats/GetDotaLobby/raw/master/version.txt", False
+xHttp.Open "GET", "https://raw.githubusercontent.com/GetDotaStats/GetDotaLobby/master/version.txt", False
 xHttp.Send
 
 dim latestVer, currentVer, latestVerStr, currentVerStr

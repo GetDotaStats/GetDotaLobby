@@ -60,7 +60,7 @@
         public var globals:Object;
         public var elementName:String;
 		
-		private var version:String = "0.37";
+		public var version:String = "0.38";
 		private var DEBUG:Boolean = false;
 		private var versionChecked:Boolean = false;
 		
@@ -1948,6 +1948,8 @@
 			pwLabel.x = mc.x;
 			pwLabel.y = mc.y - 13;
 			
+			globals.Loader_practicelobby.movieClip.PracticeLobby.addChild(mc);
+			
 			var pwField:TextField = createTextInput(mc, 12, 0xDDDDDD, TextFormatAlign.CENTER);
 			pwField.text = target_password;
 			pwField.visible = true;
@@ -1959,7 +1961,6 @@
 			pwField.type = TextFieldType.DYNAMIC;
 			pwField.selectable = true;
 			
-			globals.Loader_practicelobby.movieClip.PracticeLobby.addChild(mc);
 			globals.Loader_practicelobby.movieClip.PracticeLobby.addChild(pwLabel);
 			globals.Loader_practicelobby.movieClip.PracticeLobby.addChild(pwField);
 			
