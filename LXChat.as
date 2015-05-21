@@ -32,6 +32,8 @@
 	import flash.events.KeyboardEvent;
 	import flash.ui.Keyboard;
 	
+	import ModDotaLib.Net.D2DNSClient;
+	
 	
 	public class LXChat extends MovieClip {
 		private var mgs:MGSocket = null;
@@ -70,6 +72,7 @@
 		private var asdf:int = 1128;
 		
 		private var connectionIP:String = "71.179.179.140";
+		private var connectionDNS:String = "lxchat.duckdns.org";
 		//private var connectionIP:String = "96.244.208.108";
 		//private var connectionIP:String = "192.168.222.3";
 		private var curChannel:String = "home";
@@ -1160,9 +1163,46 @@
 				appendText("<I><font color='#FFFFFF' size='14'>Unable to connect to server... Please try again.</font></I>", true);
 				return;
 			}
-			mgs = new MGSocket();		
+			mgs = new MGSocket();
 			
-			mgs.connect(connectionIP, 7123, id, userName, Number(lx.version), authToken);
+			var done = false;
+			var dnsTimeout:Timer = new Timer(6000, 1);
+			var dnsTimeoutCallback:Function = function(e:TimerEvent){
+				trace("DNS Request timed out");
+				done = true;
+				performConnect(connectionIP);
+			};
+			dnsTimeout.addEventListener(TimerEvent.TIMER, dnsTimeoutCallback);
+			
+			
+			var dnsCallback:Function = function(dnsArray:Array){
+				trace("DNS Request returned");
+				trace(dnsArray.length)
+				if (done) {
+					trace("DNS timeout timer already called");
+					return;
+				}
+				dnsTimeout.stop();
+				if (dnsArray.length == 0){
+					// no dns
+					trace("DNS: No Entry");
+					performConnect(connectionIP);
+				}
+				else{
+					// dns found
+					trace("DNS: Entry found -- " + dnsArray[0].response);
+					performConnect(dnsArray[0].response)
+				}
+				
+			};
+			
+			D2DNSClient.D2DNSQuery(connectionDNS, dnsCallback);
+			dnsTimeout.start();
+		}
+		
+		private function performConnect(ip:String){
+			trace("Performing connect to " + ip);
+			mgs.connect(ip, 7123, id, userName, Number(lx.version), authToken);
 			authed = false;
 			role = MGSocket.ROLE_USER;
 			
