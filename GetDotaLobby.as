@@ -60,7 +60,7 @@
         public var globals:Object;
         public var elementName:String;
 		
-		public var version:String = "0.38";
+		public var version:String = "0.39";
 		private var DEBUG:Boolean = false;
 		private var versionChecked:Boolean = false;
 		

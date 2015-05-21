@@ -69,7 +69,8 @@
 		private var chatOpts:Object;
 		private var asdf:int = 1128;
 		
-		private var connectionIP:String = "96.244.208.108";
+		private var connectionIP:String = "71.179.179.140";
+		//private var connectionIP:String = "96.244.208.108";
 		//private var connectionIP:String = "192.168.222.3";
 		private var curChannel:String = "home";
 		private var id = null;
@@ -99,12 +100,14 @@
 									"DendiFace":20,
 									"EleGiggle":20,
 									"EmoTA":20,
+									"EvilLenny":13,
 									"FailFish":20,
 									"FrankerZ":20,
 									"FrogGod":20,
 									"GreyFace":20,
 									"HandsomeDevil":20,
 									"HollaHolla":20,
+									"Impossibru":20,
 									"JohnMadden":20,
 									"KAPOW":20,
 									"Kappa":20,
@@ -123,6 +126,7 @@
 									"RoyMander":20,
 									"ShhQuiet":20,
 									"SleepyTime":20,
+									"SMOrc":20,
 									"SmugCourier":20,
 									"SnoozeFest":20,
 									"TeamGomez":20,
@@ -133,7 +137,7 @@
 									"VolvoPls":9,
 									"WinWaker":20};
 									
-		//BabyRage Baku BibleThump ChaChing DankMeme DansGame DendiFace EleGiggle EmoTA FailFish FrankerZ FrogGod GreyFace HandsomeDevil HollaHolla JohnMadden KAPOW Kappa Keepo Kreygasm LastWord LordGaben MyllDerp NoyaHammer PeonSad PJSalt PogChamp PromNight PureSkill PWizzy RoyMander ShhQuiet SleepyTime SmugCourier SnoozeFest TeamGomez TinkerFi TrashMio TrollFace UltraSin VolvoPls WinWaker
+		//BabyRage Baku BibleThump ChaChing DankMeme DansGame DendiFace EleGiggle EmoTA EvilLenny FailFish FrankerZ FrogGod GreyFace HandsomeDevil HollaHolla Impossibru JohnMadden KAPOW Kappa Keepo Kreygasm LastWord LordGaben MyllDerp NoyaHammer PeonSad PJSalt PogChamp PromNight PureSkill PWizzy RoyMander ShhQuiet SleepyTime SMOrc SmugCourier SnoozeFest TeamGomez TinkerFi TrashMio TrollFace UltraSin VolvoPls WinWaker
 		
 		/*  TODO
 			- add password display to host in LX
