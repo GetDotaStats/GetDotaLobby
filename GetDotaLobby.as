@@ -1885,17 +1885,55 @@
 				}
 				
 				//PrintTable(state);
-				
+				var kickPending:Array = [];
+				if (lxOptions.blackList == null) {
+					lxOptions.blackList = {};
+				}
+				/*var blackList:Object = { // TODO: Less hardcode this
+					106252971 : {
+						"name" : "Antonio0906",
+						"reason" : "Testing"
+					},
+					106188763 : {
+						"name" : "ongames",
+						"reason" : "Testing 2"
+					},
+					120262511 : {
+						"name" : "NOOB",
+						"reason" : "Testing 3"
+					},
+					127538205 : {
+						"name" : "Hewdraw",
+						"reason" : "Sucks balls"
+					}
+				}*/
 				for (key in state){
 					// new account
 					nextState[key] = state[key];
 					retryAsyncCall("d2mods/api/lobby_joined.php?uid=" + key + "&lid=" + lobbyState.lid + "&un=" + escape(state[key]) + "&t=" + lobbyState.token, "Player join registration failure");
+					if (key in lxOptions.blackList) {
+						traceLX("We are going to kick "+key.toString()+", get ready!");
+						kickPending.push(key);
+					}
 				}
-				
 				//PrintTable(nextState);
 				//traceLX("-----");
 				
 				lobbyState.players = nextState;
+				//We do this after saving it in lobbyState for the lobby_left logic to kick in next cycle so GDS can atleast guess they were kicked for blacklist
+				for (var kick in kickPending) {
+					traceLX("Kicking "+kickPending[kick].toString()+" now.");
+					globals.Loader_practicelobby.movieClip.gameAPI.Kick(uint(kickPending[kick]));
+					var valveTabArea = globals.Loader_chat.movieClip.chat_main.chat.TabScrollArea.TabArea;
+					for (var i:int=0; i < globals.Loader_chat.movieClip.chatTabCount; i++) {
+						if (valveTabArea["ChannelTab"+i.toString()].channelName.indexOf("Lobby_") == 0) {
+							globals.Loader_chat.movieClip.gameAPI.ChatSetCurrentTab(valveTabArea["ChannelTab"+i.toString()].channelName);
+							globals.Loader_chat.movieClip.gameAPI.ChatSay("[LOCAL-BLACKLIST] "+lxOptions.blackList[kickPending[kick]].name+" banned from host for reason: "+lxOptions.blackList[kickPending[kick]].reason);
+						}
+					}
+					traceLX("did we make it?");
+				}
+
 				
 				// Check lobby settings
 				var lname:String = globals.Loader_lobby_settings.movieClip.LobbySettings.gamenamefield.text;
