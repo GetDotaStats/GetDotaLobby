@@ -54,6 +54,8 @@
 	import flash.geom.Rectangle;
 	import flash.display.BitmapData;
 	
+	import ModDotaLib.Utils.AssetUtils;
+	
 	public class GetDotaLobby extends MovieClip {
 		// Game API related stuff
         public var gameAPI:Object;
@@ -2002,6 +2004,20 @@
 			globals.Loader_practicelobby.movieClip.PracticeLobby.addChild(pwLabel);
 			globals.Loader_practicelobby.movieClip.PracticeLobby.addChild(pwField);
 			
+			var banButton:MovieClip = AssetUtils.CreateAsset("chrome_button_primary");
+			var balanceButton:MovieClip = globals.Loader_practicelobby.movieClip.PracticeLobby.BalancedShuffleButton;
+			banButton.label = "MANAGE BAN LIST";
+			banButton.x = balanceButton.x - 0.5*balanceButton.width;
+			banButton.y = 1.03*balanceButton.y;
+			banButton.name = "BanButton";
+			banButton.height = balanceButton.height;
+			banButton.width = balanceButton.width;
+			banButton.scaleX = balanceButton.scaleX;
+			banButton.scaleY = balanceButton.scaleY;
+			banButton.addEventListener(MouseEvent.CLICK, onManageBans);
+			
+			globals.Loader_practicelobby.movieClip.PracticeLobby.addChild(banButton);
+			
 			
 			var oldLeaveButton = globals.Loader_practicelobby.movieClip.gameAPI.LeaveButton;
 			var oldStartButton = globals.Loader_practicelobby.movieClip.gameAPI.StartGameButton;
@@ -2115,6 +2131,10 @@
 					successCallback(statusCode, data);
 			};
 			socket.getDataAsync(url, retryAsyncCallback);
+		}
+		
+		public function onManageBans(event:MouseEvent) {
+			traceLX("Hello World!");
 		}
 		
 		public function test2(event:MouseEvent, pass:String = "asdf") { //Join Game
