@@ -83,6 +83,7 @@
 		public var joinPanelBg:MovieClip;
 		public var optionsPanelBg:MovieClip;
 		public var minigamesPanelBg:MovieClip;
+		public var banListPanelBg:MovieClip;
 		
 		public var chatLoader:Loader = null;
 		public var chat = null;
@@ -496,7 +497,9 @@
 
 			var kv:Object = globals.GameInterface.LoadKVFile('resource/flash3/minigames.kv');
 			lxOptions = globals.GameInterface.LoadKVFile('resource/flash3/options.kv');
-			
+			if (lxOptions.blackList == null) {
+				lxOptions.blackList = {};
+			}
 			minigameKV = new Object();
 			minigameKV.Games = new Object();
 			for (var gameName:String in kv){
@@ -513,15 +516,27 @@
 			}
 
 			if (DEBUG){
-				createTestButton("Create Game", test1);
-				createTestButton("Join Game", test2);
-				createTestButton("Dump Globals", test3);
-				createTestButton("hook clicks", test4);
-				createTestButton("Get Lobbies", test5);
-				createTestButton("Lobby Status", test6);
-				createTestButton("Test 8", sendMMR);
-				createTestButton("Load", test7);
-				createTestButton("Unload", test8);
+				var testButtons = [
+				createTestButton("Create Game", test1),
+				createTestButton("Join Game", test2),
+				createTestButton("Dump Globals", test3),
+				createTestButton("hook clicks", test4),
+				createTestButton("Get Lobbies", test5),
+				createTestButton("Lobby Status", test6),
+				createTestButton("Test 8", sendMMR),
+				createTestButton("Load", test7),
+				createTestButton("Unload", test8),
+				createTestButton("Manage Banlist", onManageBans)
+				];
+				var testX = globals.Loader_community.movieClip.CommunityWindow.CommunityMain.Nav.tab0.x + globals.Loader_community.movieClip.CommunityWindow.CommunityMain.Nav.tab0.width * 2;
+				var testY = globals.Loader_community.movieClip.CommunityWindow.CommunityMain.Nav.tab0.y;
+				var testDY = globals.Loader_community.movieClip.CommunityWindow.CommunityMain.Nav.tab0.height*2;
+				for (var test in testButtons) {
+					this.removeChild(testButtons[test]);
+					testButtons[test].x = testX;
+					testButtons[test].y = testY + test*testDY;
+					globals.Loader_community.movieClip.CommunityWindow.CommunityMain.addChild(testButtons[test]);
+				}
 			}
 			
 			//  backdrop for host game panel
@@ -889,7 +904,65 @@
 			this.lobbyClip.lobbies.contentMask.y = 15;
 			this.lobbyClip.lobbies.contentMask.width = 915;
 			this.lobbyClip.lobbies.contentMask.height = 494;
+			traceLX("Test");
+			// Banlist panel
+			mc2 = new bgClass2();
+			banListPanelBg = new MovieClip();
+			banListPanelBg.addChild(mc2);
+			globals.Loader_top_bar.movieClip.addChild(banListPanelBg);
+			traceLX("TestA");
+			this.banListPanel.x = 0;
+			this.banListPanel.y = 0;
+			this.removeChild(this.banListPanel);
+			banListPanelBg.addChild(this.banListPanel);
+			this.banListPanel.closeButton.addEventListener(MouseEvent.CLICK, closeClicked, false, 0, true);
+			traceLX("TestB");
+			banListPanelBg.visible = false;
+			banListPanelBg.width = this.banListPanel.width;
+			banListPanelBg.height = this.banListPanel.height;
+			banListPanelBg.scaleX = 1;
+			banListPanelBg.scaleY = 1;
+			traceLX("TestC");
+			mc2.width = this.banListPanel.width;
+			mc2.height = this.banListPanel.height;
+			traceLX("TestD");
+			this.banListPanel.bans = replaceWithValveComponent(this.banListPanel.bans, "ScrollViewTest", true, 0);
+			sb = new sbClass();
+			sb.enabled = true;
+			sb.visible = true;
+			traceLX("TestE");
+			this.banListPanel.addChild(sb);
+			traceLX("TestF");
+			this.banListPanel.bans.scrollBar = sb;
+			this.banListPanel.bans.enabled = true;
+			this.minigamesPanel.minigames.visible = true;
+			traceLX("TestG");
+			panel = new panelClass();
+			panel.visible = true;
+			panel.enabled = true;
+			traceLX("TestH");
+			panel.x = this.banListPanel.bans.content.x;
+			panel.y = this.banListPanel.bans.content.y;
+			panel.width = 530;
+			panel.height = 516;
+			this.banListPanel.bans.addChildAt(panel, 0);
+			this.banListPanel.bans.content.removeChild(this.banListPanel.bans.content.Offline);
+			this.banListPanel.bans.content.removeChild(this.banListPanel.bans.content.Online);
+			this.banListPanel.bans.content.removeChild(this.banListPanel.bans.content.PlayingDota);
+			this.banListPanel.bans.content.removeChild(this.banListPanel.bans.content.Pending);
+			traceLX("TestI");
+			sb.x = this.banListPanel.bans.width + this.banListPanel.bans.x - sb.width;
+			sb.y = this.banListPanel.bans.y;
+			sb.height = 516;
+			traceLX("TestJ");
+			this.banListPanel.bans.content.x = 5;
+			this.banListPanel.bans.contentMask.x = -10;
+			this.banListPanel.bans.contentMask.y = 15;
+			this.banListPanel.bans.contentMask.width = 530;
+			this.banListPanel.bans.contentMask.height = 488;
 			
+			this.banListPanel.removeChild(this.banListPanel.ex1);
+			traceLX("Test2");
 			// Minigames panel
 			mc2 = new bgClass2();
 			minigamesPanelBg = new MovieClip();
@@ -962,7 +1035,7 @@
 					globals.PrecacheImage(game.Image);
 				}
 			}
-			
+			traceLX("Test3");
 			
 			// Options panel	
 			mc2 = new bgClass2();
@@ -1218,6 +1291,10 @@
 			}
 			
 			this.minigamesPanel.minigames.updateScrollBar();
+			
+			var bansTimer:Timer = new Timer(3000,1);
+			bansTimer.addEventListener(TimerEvent.TIMER, populateBlackList);
+			bansTimer.start();
 		}
 		
 		public function checkVersion(statusCode:int, data:String){
@@ -1386,6 +1463,7 @@
 			logPanel.visible =false;
 			optionsPanelBg.visible = false;
 			minigamesPanelBg.visible = false;
+			banListPanelBg.visible = false;
 			currentOptions = new Array();
 		}
 		
@@ -1410,6 +1488,7 @@
 			lobbyBrowserClip.visible = false;
 			logPanel.visible = false;
 			optionsPanelBg.visible = false;
+			banListPanelBg.visible = false;
 			minigamesPanelBg.visible = true;
 			currentOptions = new Array();
 
@@ -1451,6 +1530,7 @@
 			logPanel.visible = !logPanel.visible;
 			optionsPanelBg.visible = false;
 			minigamesPanelBg.visible = false;
+			banListPanelBg.visible = false;
 			currentOptions = new Array();
 		}
 		
@@ -1888,9 +1968,6 @@
 				
 				//PrintTable(state);
 				var kickPending:Array = [];
-				if (lxOptions.blackList == null) {
-					lxOptions.blackList = {};
-				}
 				/*var blackList:Object = { // TODO: Less hardcode this
 					106252971 : {
 						"name" : "Antonio0906",
@@ -2135,6 +2212,38 @@
 		
 		public function onManageBans(event:MouseEvent) {
 			traceLX("Hello World!");
+			hostGameClip.visible = false;
+			lobbyBrowserClip.visible = false;
+			logPanel.visible = false;
+			optionsPanelBg.visible = false;
+			banListPanelBg.visible = true;
+			minigamesPanelBg.visible = false;
+			currentOptions = new Array();
+		}
+		public function populateBlackList(e:TimerEvent) {
+			var content:MovieClip = this.banListPanel.bans.content;
+			for (var i:int = content.numChildren-1; i>=0; i--){
+				content.removeChildAt(i);
+			}
+			var i:int = 0;
+			for (var victim in lxOptions.blackList) {
+				var banEntry:banListEntry = new banListEntry();
+				banEntry.banName.text = lxOptions.blackList[victim].name;
+				banEntry.banReason.text = lxOptions.blackList[victim].reason;
+				banEntry.y = i*banEntry.height + banEntry.height / 4;
+				banEntry.visible = true;
+				Globals.instance.LoadImageWithCallback("img://[M" 
+					+ victim
+					+ "]",banEntry.hostIcon,true, null);
+					
+				banEntry.gotoAndStop(1);
+				var banRollOver:Function = function(e:MouseEvent){e.target.gotoAndStop(2);};
+				var banRollOut:Function = function(e:MouseEvent){e.target.gotoAndStop(1);};
+				banEntry.addEventListener(MouseEvent.ROLL_OVER, banRollOver, false, 0, true);
+				banEntry.addEventListener(MouseEvent.ROLL_OUT, banRollOut, false, 0, true);
+				content.addChild(banEntry);
+				i++;
+			}
 		}
 		
 		public function test2(event:MouseEvent, pass:String = "asdf") { //Join Game
@@ -2910,6 +3019,14 @@
 			if (offset < 0)
 				offset = 0;
 			lobbyBrowserClip.y = (re.ScreenHeight - lobbyBrowserClip.height + offset) / 2;//re.ScreenHeight * .25;
+			
+			banListPanelBg.scaleX = correctedRatio;
+			banListPanelBg.scaleY = correctedRatio;
+			banListPanelBg.x = (re.ScreenWidth / 2 - banListPanelBg.width / 2);//re.ScreenWidth * .3;
+			offset = (this.banListPanel.bans.content.height - 516) * correctedRatio;
+			if (offset < 0)
+				offset = 0;
+			banListPanelBg.y = (re.ScreenHeight - banListPanelBg.height + offset) / 2;//re.ScreenHeight * .25;
 			
 			minigamesPanelBg.scaleX = correctedRatio;
 			minigamesPanelBg.scaleY = correctedRatio;
