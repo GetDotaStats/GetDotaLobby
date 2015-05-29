@@ -1278,13 +1278,31 @@
 						//appendText((new JSONEncoder(channelRosterNames)).getString() + "\n");
 						break;
 					case "msg":
+						var outMsg = escapeTags(obj.msg);
+						var linkRegEx:RegExp = new RegExp("\\b((?:https?:\\/\\/|www\\d{0,3}[.]|[a-z0-9.\\-]+[.][a-z]{2,4}\\/)(?:[^\\s()<>]+|\\(([^\\s()<>]+|(\\([^\\s()<>]+\\)))*\\))+(?:\\(([^\\s()<>]+|(\\([^\\s()<>]+\\)))*\\)|[^\\s`!()\\[\\]{};:\'\".,<>?«»“”‘’]))", "ig");
+						var secondLinkRegEx:RegExp = new RegExp("\"event:www", "g");
+						//trace("=======================");
+						var resultRegex:Object = linkRegEx.exec(outMsg);
+						var replacementArray:Array = new Array();
+						while (resultRegex != null) {
+							replacementArray.push({"key" : resultRegex[0], "value" : ("<A href=\"event:"+resultRegex[0]+"\">"+resultRegex[0]+"</A>").replace(secondLinkRegEx, "\"event:http://www")});
+							//trace(resultRegex.index, "\t", resultRegex);
+							resultRegex = linkRegEx.exec(outMsg);
+						}
+						///trace("=======================");
+						//trace(outMsg);
+						for each (var regexEntry in replacementArray) {
+							outMsg = outMsg.replace(regexEntry.key, regexEntry.value);
+						}
+						//trace(outMsg);
 						if (obj.hasOwnProperty("toUser")){
+							
 							var toUser = obj.toUser;
 							if (chatOpts.Ignored && chatOpts.Ignored[obj.fromUser])
 								return;
 								
 							if (toUser == id){
-								appendText(getTimeString() + "<font color='#FF33CC' size='14'>[From " + getUserString(obj.fromUser, "") + "] " + escapeTags(obj.msg) + " </font>\n");
+								appendText(getTimeString() + "<font color='#FF33CC' size='14'>[From " + getUserString(obj.fromUser, "") + "] " + outMsg + " </font>\n");
 							}
 						}
 						else if (obj.hasOwnProperty("toChannel")){
@@ -1297,7 +1315,7 @@
 								colorStr = " color='#04CC00'";
 								
 							if (toChannel == curChannel){
-								appendText(getTimeString() + getUserString(obj.fromUser) + " <font size='14'" + colorStr + ">" + escapeTags(obj.msg) + " </font>\n");
+								appendText(getTimeString() + getUserString(obj.fromUser) + " <font size='14'" + colorStr + ">" + outMsg + " </font>\n");
 							}
 						}
 						break;
