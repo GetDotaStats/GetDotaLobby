@@ -1280,12 +1280,12 @@
 					case "msg":
 						var outMsg = escapeTags(obj.msg);
 						var linkRegEx:RegExp = new RegExp("\\b((?:https?:\\/\\/|www\\d{0,3}[.]|[a-z0-9.\\-]+[.][a-z]{2,4}\\/)(?:[^\\s()<>]+|\\(([^\\s()<>]+|(\\([^\\s()<>]+\\)))*\\))+(?:\\(([^\\s()<>]+|(\\([^\\s()<>]+\\)))*\\)|[^\\s`!()\\[\\]{};:\'\".,<>?«»“”‘’]))", "ig");
-						var secondLinkRegEx:RegExp = new RegExp("\"event:www", "g");
+						var secondLinkRegEx:RegExp = new RegExp("\"?url=www", "g");
 						//trace("=======================");
 						var resultRegex:Object = linkRegEx.exec(outMsg);
 						var replacementArray:Array = new Array();
 						while (resultRegex != null) {
-							replacementArray.push({"key" : resultRegex[0], "value" : ("<A href=\"event:"+resultRegex[0]+"\">"+resultRegex[0]+"</A>").replace(secondLinkRegEx, "\"event:http://www")});
+							replacementArray.push({"key" : resultRegex[0], "value" : ("<A href=\"event:https://steamcommunity.com/linkfilter/?url="+resultRegex[0]+"\">"+resultRegex[0]+"</A>").replace(secondLinkRegEx, "\"event:http://www")});
 							//trace(resultRegex.index, "\t", resultRegex);
 							resultRegex = linkRegEx.exec(outMsg);
 						}
