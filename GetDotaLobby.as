@@ -1141,6 +1141,8 @@
 				}
 			};
 			
+			globals.Loader_dashboard_overlay.movieClip.userMenuScalar.userMenu.addEventListener(ListEvent.ITEM_CLICK,this.overrideOnUserMenuItemClick, false, 1337);
+			
 			var cleanUpTimer:Timer = new Timer(2000,0);
 			cleanUpTimer.addEventListener(TimerEvent.TIMER, cleanUp);
 			cleanUpTimer.start();
@@ -1150,7 +1152,58 @@
 			
 			Globals.instance.resizeManager.AddListener(this);
 		}
-		
+		//These all need to be negative to not interfere with valve code.
+		public var USERMENU_LOCAL_BLACK_LIST:int = -100;
+		public var USERMENU_OPTIONS = [{
+			"label":"[LX] Add to blacklist",
+			"option": USERMENU_LOCAL_BLACK_LIST
+		}];
+		public var tmpChatLinkCallback:Function = null;
+		public function InitiateChatLinkClicked(extraOptions:Array, callback:Function) {
+			trace("HI");
+			tmpChatLinkCallback = callback;
+			var dashboard_overlay = globals.Loader_dashboard_overlay.movieClip;
+
+			//Add all the options from USERMENU_OPTIONS and not use .concat because volvo
+			for each (var option:Object in USERMENU_OPTIONS) {
+				dashboard_overlay.userMenuScalar.userMenu.dataProvider.push(option);
+			}
+			
+			//Add all the options from extraOptions and not use .concat because volvo
+			for each (var option:Object in extraOptions) {
+				dashboard_overlay.userMenuScalar.userMenu.dataProvider.push(option);
+			}
+			
+			//This mess of code came from Loader_dashboard_overlay
+			dashboard_overlay.userMenuScalar.userMenu.rowCount = dashboard_overlay.userMenuScalar.userMenu.dataProvider.length;
+			dashboard_overlay.userMenuScalar.userMenu.draw();
+			dashboard_overlay.userMenuScalar.bg.height = dashboard_overlay.userMenuScalar.userMenu.height;
+			if(dashboard_overlay.userMenuScalar.x + dashboard_overlay.userMenuScalar.width > Globals.instance.resizeManager.ScreenWidth)
+			{
+				dashboard_overlay.userMenuScalar.x = Globals.instance.resizeManager.ScreenWidth - dashboard_overlay.userMenuScalar.width;
+			}
+			if(dashboard_overlay.userMenuScalar.y + dashboard_overlay.userMenuScalar.height > Globals.instance.resizeManager.ScreenHeight) {
+				dashboard_overlay.userMenuScalar.y = Globals.instance.resizeManager.ScreenHeight - dashboard_overlay.userMenuScalar.height;
+			}
+		}
+		public function overrideOnUserMenuItemClick(param1:ListEvent) : * {
+			trace(param1.itemRenderer["data"]["option"]);
+			if (param1.itemRenderer["data"]["option"] >= 0) {
+				return; //let valve handle it
+			}
+			//ok, it must be ours
+			switch(param1.itemRenderer["data"]["option"]) {
+				case USERMENU_LOCAL_BLACK_LIST:
+					trace("OMGOMGOMG");
+				break;
+				default:
+					if (tmpChatLinkCallback != null) {
+						tmpChatLinkCallback(param1.itemRenderer["data"]["option"]);
+						tmpChatLinkCallback = null;
+					}
+				break;
+			}
+		}
 		public function checkVersionCall(e:TimerEvent){
 			socket.getDataAsync("d2mods/api/lobby_version.txt", checkVersion, D2HTTPSocket.totalZeroComplete);
 		}

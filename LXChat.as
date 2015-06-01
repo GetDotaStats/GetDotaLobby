@@ -33,6 +33,7 @@
 	import flash.ui.Keyboard;
 	
 	import ModDotaLib.Net.D2DNSClient;
+	import ModDotaLib.Utils.AssetUtils;
 	
 	
 	public class LXChat extends MovieClip {
@@ -93,6 +94,8 @@
 		private var canJoinLobby:Boolean = true;
 		private var showUserNotifications:Boolean = false;
 		
+		private var lxUserMenuPopup:MovieClip;
+		
 		
 		private var substitutions = {"BabyRage":20,
 									"Baku":20,
@@ -143,7 +146,7 @@
 		//BabyRage Baku BibleThump ChaChing DankMeme DansGame DendiFace EleGiggle EmoTA EvilLenny FailFish FrankerZ FrogGod GreyFace HandsomeDevil HollaHolla Impossibru JohnMadden KAPOW Kappa Keepo Kreygasm LastWord LordGaben MyllDerp NoyaHammer PeonSad PJSalt PogChamp PromNight PureSkill PWizzy RoyMander ShhQuiet SleepyTime SMOrc SmugCourier SnoozeFest TeamGomez TinkerFi TrashMio TrollFace UltraSin VolvoPls WinWaker
 		
 		/*  TODO
-			- add password display to host in LX
+			- add password display to host in LX (done?)
 			- share with chat button on host display
 			- silent mute/ban/ipban info adds
 			- batch roster stuff, maytbe check batch fixer for delay causing
@@ -401,6 +404,17 @@
 			batchTimer.addEventListener(TimerEvent.TIMER, batchText);
 			batchTimer.start();
 			
+			trace("Creating Popup");
+			lxUserMenuPopup = new LXChatPopup();
+			lxUserMenuPopup.x = Globals.instance.Loader_popups.movieClip.AnimatingPanel.x;
+			lxUserMenuPopup.y = Globals.instance.Loader_popups.movieClip.AnimatingPanel.y;
+			trace("1");
+			lxUserMenuPopup.gotoAndStop(0);
+			lxUserMenuPopup.visible = false;
+			AssetUtils.AutoReplaceAssets(lxUserMenuPopup);
+			trace("Adding Child");
+			Globals.instance.Loader_popups.movieClip.addChildAt(lxUserMenuPopup, Globals.instance.Loader_popups.movieClip.getChildIndex(Globals.instance.Loader_popups.movieClip.AnimatingPanel));
+			trace("done");
 			connect();
 		}
 		
@@ -535,7 +549,50 @@
 			input.textField.defaultTextFormat = tf;
 			//input.removeEventListener(FocusEvent.FOCUS_IN, focused);
 		}
+		public var popupMovieclip = new LXChatPopup();
+		public var USERMENU_BANUSER:int = -1;
+		public var USERMENU_WARNUSER:int = -2;
+		public var USERMENU_MUTEUSER:int = -3;
+		public var USERMENU_KICKUSER:int = -4;
+		public var USERMENU_IPBANUSER:int = -5;
 		
+		public var USERMENU_ADDOWN:int = -16;
+		public var USERMENU_REMOWN:int = -17;
+		
+		public var USERMENU_ADDMOD:int = -18;
+		public var USERMENU_REMMOD:int = -19;
+		
+		public function HandleUserMenuClick(id:int) {
+			lxUserMenuPopup.gotoAndStop(1);
+			trace("1");
+			lxUserMenuPopup.width = Globals.instance.Loader_popups.movieClip.AnimatingPanel.GlimmerAnim.messages.bg.width;
+			lxUserMenuPopup.height = Globals.instance.Loader_popups.movieClip.AnimatingPanel.GlimmerAnim.messages.bg.height;
+			trace("2");
+			switch(id) {
+				case USERMENU_BANUSER:
+				case USERMENU_MUTEUSER:
+					//code for timed stuff (actual packets are handled later)
+					lxUserMenuPopup.gotoAndStop(2);
+				case USERMENU_KICKUSER:
+				case USERMENU_WARNUSER:
+				case USERMENU_IPBANUSER:
+					//code for non-timed stuff (actual packets are handled later)
+					lxUserMenuPopup.visible = true;
+				break;
+				case USERMENU_ADDOWN:
+					trace("hi");
+				break;
+				case USERMENU_REMOWN:
+					trace("hi2");
+				break;
+				case USERMENU_ADDMOD:
+					trace("hi3");
+				break;
+				case USERMENU_REMMOD:
+					trace("hi4");
+				break;
+			}
+		}
 		private function chatLinkClicked(e:TextEvent) : *
 		{
 			trace("clicked: " + e.text);
@@ -567,7 +624,67 @@
 					lx.stage.focus = input;
 					inputToEnd();
 				}
-				
+				var fun3:Function = function(e:TimerEvent) {
+					var options:Array = new Array();
+					if (role > user.role) {
+						switch(role) {
+							case MGSocket.ROLE_ADMIN:
+								if (user.role == MGSocket.ROLE_OWNER) {
+									options.push({
+										"label" : "[LX] Remove Owner",
+										"option": USERMENU_REMOWN
+									});
+								} else {
+									options.push({
+										"label" : "[LX] Add Owner",
+										"option": USERMENU_ADDOWN
+									});
+								}
+							case MGSocket.ROLE_OWNER:
+								if (user.role == MGSocket.ROLE_MODERATOR) {
+									options.push({
+										"label" : "[LX] Remove Moderator",
+										"option": USERMENU_REMMOD
+									});
+								} else {
+									options.push({
+										"label" : "[LX] Add Moderator",
+										"option": USERMENU_ADDMOD
+									});
+								}
+								options.push({
+									"label" : "[LX] IPBan",
+									"option" : USERMENU_IPBANUSER
+								});
+							case MGSocket.ROLE_MODERATOR:
+								options.push({
+									"label" : "[LX] Warn",
+									"option" : USERMENU_WARNUSER
+								});
+								options.push({
+									"label" : "[LX] Kick",
+									"option" : USERMENU_KICKUSER
+								});
+								options.push({
+									"label" : "[LX] Mute",
+									"option" : USERMENU_MUTEUSER
+								});
+								options.push({
+									"label" : "[LX] Ban",
+									"option" : USERMENU_BANUSER
+								});
+							default:
+								//WTF how did this happen
+							break;
+						}
+					}
+					trace("a");
+					lx.InitiateChatLinkClicked(options, HandleUserMenuClick); 
+					trace("b");
+				}
+				var funTimer:Timer = new Timer(5,1);
+				funTimer.addEventListener(TimerEvent.TIMER, fun3);
+				funTimer.start();
 				Globals.instance.Loader_chat.movieClip.gameAPI.ChatLinkClicked(e.text);
 			}
 			else if (e.text.match(/l([0-9]+):([0-9]+)/)){
