@@ -589,6 +589,10 @@
 					timer.start();
 				}
 			}
+			else {
+				trace("Links ahoy!!");
+				lx.SetupLink(e.text);
+			}
 		}
 		
 		public function appendText(text:String, batch:Boolean = false){
