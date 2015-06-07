@@ -1159,18 +1159,22 @@
 			"option": USERMENU_LOCAL_BLACK_LIST
 		}];
 		public var tmpChatLinkCallback:Function = null;
-		public function InitiateChatLinkClicked(extraOptions:Array, callback:Function) {
+		public function InitiateChatLinkClicked(steamID:String, steamName:String, extraOptions:Array, callback:Function) {
 			trace("HI");
 			tmpChatLinkCallback = callback;
 			var dashboard_overlay = globals.Loader_dashboard_overlay.movieClip;
 
 			//Add all the options from USERMENU_OPTIONS and not use .concat because volvo
 			for each (var option:Object in USERMENU_OPTIONS) {
+				option["steamID"] = steamID;
+				option["steamName"] = steamName;
 				dashboard_overlay.userMenuScalar.userMenu.dataProvider.push(option);
 			}
 			
 			//Add all the options from extraOptions and not use .concat because volvo
 			for each (var option:Object in extraOptions) {
+				option["steamID"] = steamID;
+				option["steamName"] = steamName;
 				dashboard_overlay.userMenuScalar.userMenu.dataProvider.push(option);
 			}
 			
@@ -1194,7 +1198,8 @@
 			//ok, it must be ours
 			switch(param1.itemRenderer["data"]["option"]) {
 				case USERMENU_LOCAL_BLACK_LIST:
-					trace("OMGOMGOMG");
+					addBlackListEntry(param1.itemRenderer["data"]["steamID"], param1.itemRenderer["data"]["steamName"], "asdf", new Date());
+					PrintTable(param1);
 				break;
 				default:
 					if (tmpChatLinkCallback != null) {
@@ -2273,6 +2278,27 @@
 			minigamesPanelBg.visible = false;
 			currentOptions = new Array();
 		}
+		public function addBlackListEntry(id:String, name:String, reason:String, date:Date) {
+			if (id in lxOptions.blackList) {
+				return false; //wtf
+			} else {
+				lxOptions.blackList[id] = {
+					"name" : name,
+					"reason" : reason
+				};
+				populateBlackList(null);
+				Globals.instance.GameInterface.SaveKVFile(lxOptions, 'resource/flash3/options.kv', 'Options');
+			}
+			
+		}
+		public function removeBlackListEntry(id:String) {
+			if (id in lxOptions.blackList) {
+				var tmp:Array = new Array();
+				delete lxOptions.blackList[id];
+				populateBlackList(null);
+				Globals.instance.GameInterface.SaveKVFile(lxOptions, 'resource/flash3/options.kv', 'Options');
+			}
+		}
 		public function populateBlackList(e:TimerEvent) {
 			var content:MovieClip = this.banListPanel.bans.content;
 			for (var i:int = content.numChildren-1; i>=0; i--){
@@ -2281,6 +2307,7 @@
 			var i:int = 0;
 			for (var victim in lxOptions.blackList) {
 				var banEntry:banListEntry = new banListEntry();
+				banEntry["steamID"] = victim;
 				banEntry.banName.text = lxOptions.blackList[victim].name;
 				banEntry.banReason.text = lxOptions.blackList[victim].reason;
 				banEntry.y = i*banEntry.height + banEntry.height / 4;
@@ -2290,10 +2317,20 @@
 					+ "]",banEntry.hostIcon,true, null);
 					
 				banEntry.gotoAndStop(1);
-				var banRollOver:Function = function(e:MouseEvent){e.target.gotoAndStop(2);};
-				var banRollOut:Function = function(e:MouseEvent){e.target.gotoAndStop(1);};
-				banEntry.addEventListener(MouseEvent.ROLL_OVER, banRollOver, false, 0, true);
-				banEntry.addEventListener(MouseEvent.ROLL_OUT, banRollOut, false, 0, true);
+				var banRollOver:Function = function(e:MouseEvent) {
+					e.target.gotoAndStop(2);
+				};
+				var banRollOut:Function = function(e:MouseEvent) {
+					e.target.gotoAndStop(1);
+				};
+				var banDeleteEntry:Function = function(e:MouseEvent) {
+					trace("Killing entry");
+					removeBlackListEntry(e.target.parent["steamID"]);
+					trace("is it dead?");
+				}
+				banEntry.addEventListener(MouseEvent.ROLL_OVER, banRollOver, false, 0, false);
+				banEntry.addEventListener(MouseEvent.ROLL_OUT, banRollOut, false, 0, false);
+				banEntry.closeButton.addEventListener(MouseEvent.CLICK, banDeleteEntry, false, 0, false);
 				content.addChild(banEntry);
 				i++;
 			}

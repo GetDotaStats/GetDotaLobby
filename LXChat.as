@@ -679,7 +679,7 @@
 						}
 					}
 					trace("a");
-					lx.InitiateChatLinkClicked(options, HandleUserMenuClick); 
+					lx.InitiateChatLinkClicked(uid, user.name, options, HandleUserMenuClick); 
 					trace("b");
 				}
 				var funTimer:Timer = new Timer(5,1);
